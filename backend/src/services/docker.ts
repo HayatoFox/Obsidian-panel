@@ -38,7 +38,7 @@ export class DockerService {
     return DockerService.instance;
   }
 
-  async getInfo(): Promise<Docker.DockerInfo> {
+  async getInfo(): Promise<Record<string, any>> {
     return this.docker.info();
   }
 

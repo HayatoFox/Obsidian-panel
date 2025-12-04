@@ -73,15 +73,15 @@ export default function Servers() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'running':
-        return 'bg-green-500'
+        return 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)] animate-pulse'
       case 'starting':
-        return 'bg-yellow-500'
+        return 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.6)] animate-pulse'
       case 'stopping':
-        return 'bg-orange-500'
+        return 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]'
       case 'stopped':
         return 'bg-gray-500'
       case 'error':
-        return 'bg-red-500'
+        return 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'
       default:
         return 'bg-gray-500'
     }
@@ -90,7 +90,7 @@ export default function Servers() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-obsidian-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-obsidian-500 shadow-glow"></div>
       </div>
     )
   }
@@ -99,7 +99,7 @@ export default function Servers() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-100">Servers</h1>
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400">Servers</h1>
           <p className="text-gray-400 mt-2">Manage your game servers</p>
         </div>
         <Link to="/servers/create" className="btn btn-primary flex items-center gap-2">
@@ -109,7 +109,7 @@ export default function Servers() {
       </div>
 
       {servers.length === 0 ? (
-        <div className="card text-center py-16">
+        <div className="card text-center py-16 border-dashed border-dark-700">
           <h3 className="text-xl font-medium text-gray-300 mb-2">No servers yet</h3>
           <p className="text-gray-500 mb-6">Create your first game server to get started.</p>
           <Link to="/servers/create" className="btn btn-primary">
@@ -119,25 +119,25 @@ export default function Servers() {
       ) : (
         <div className="grid gap-4">
           {servers.map((server) => (
-            <div key={server.id} className="card flex items-center justify-between">
+            <div key={server.id} className="card flex items-center justify-between hover:border-obsidian-500/30 hover:shadow-glow-sm transition-all duration-300 group">
               <div className="flex items-center gap-4">
-                <div className={clsx('h-3 w-3 rounded-full', getStatusColor(server.status))} />
+                <div className={clsx('h-3 w-3 rounded-full transition-all duration-500', getStatusColor(server.status))} />
                 <div>
                   <Link
                     to={`/servers/${server.id}`}
-                    className="text-lg font-medium text-gray-200 hover:text-obsidian-400"
+                    className="text-lg font-medium text-gray-200 group-hover:text-obsidian-300 transition-colors"
                   >
                     {server.name}
                   </Link>
                   <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
-                    <span className="capitalize">{server.gameType}</span>
-                    <span>•</span>
-                    <span>Port {server.port}</span>
-                    <span>•</span>
+                    <span className="capitalize px-2 py-0.5 rounded bg-dark-800 border border-dark-700 text-xs">{server.gameType}</span>
+                    <span className="text-dark-600">•</span>
+                    <span>Port <span className="font-mono text-obsidian-400">{server.port}</span></span>
+                    <span className="text-dark-600">•</span>
                     <span>{server.memoryLimit} MB RAM</span>
                     {server.user && (
                       <>
-                        <span>•</span>
+                        <span className="text-dark-600">•</span>
                         <span>Owner: {server.user.username}</span>
                       </>
                     )}

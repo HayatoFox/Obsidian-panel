@@ -89,7 +89,7 @@ model GameTemplate {
   id          String @id @default(uuid())
   name        String @unique
   displayName String
-  category    String // minecraft, steamcmd
+  category    String // minecraft, steamcmd, other
   description String
   
   // Docker image
@@ -113,6 +113,9 @@ model GameTemplate {
   
   // Environment variables template (JSON)
   envTemplate String @default("{}")
+  
+  // Port configuration with predefined slots (JSON)
+  portConfig String @default("{}")
   
   isActive Boolean @default(true)
   createdAt DateTime @default(now())

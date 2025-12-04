@@ -167,7 +167,7 @@ export default function SchedulesTab({ server }: Props) {
   }
 
   const formatCron = (cron: string) => {
-    const [minute, hour, dayOfMonth, month, dayOfWeek] = cron.split(' ')
+    const [minute, hour, dayOfMonth, _month, dayOfWeek] = cron.split(' ')
     
     let timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
     

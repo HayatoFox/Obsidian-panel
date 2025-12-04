@@ -34,15 +34,6 @@ export default function SettingsTab({ server, onUpdate }: Props) {
     gamemode: 'survival',
   })
 
-  // Parse game config
-  const gameConfig = (() => {
-    try {
-      return JSON.parse(server.gameConfig || '{}')
-    } catch {
-      return {}
-    }
-  })()
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

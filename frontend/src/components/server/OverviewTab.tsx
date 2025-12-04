@@ -16,7 +16,6 @@ import {
   ClockIcon,
   ServerIcon,
 } from '@heroicons/react/24/outline'
-import api from '../../lib/api'
 
 interface Server {
   id: string
@@ -56,8 +55,8 @@ interface HistoryPoint {
 
 export default function OverviewTab({ server, stats }: Props) {
   const [history, setHistory] = useState<HistoryPoint[]>([])
-  const [playerCount, setPlayerCount] = useState<number>(0)
-  const [maxPlayers, setMaxPlayers] = useState<number>(20)
+  const [playerCount] = useState<number>(0)
+  const [maxPlayers] = useState<number>(20)
 
   // Simuler l'historique des stats
   useEffect(() => {
@@ -140,11 +139,11 @@ export default function OverviewTab({ server, stats }: Props) {
         {infoCards.map((card) => (
           <div
             key={card.label}
-            className="bg-dark-800 rounded-xl p-4 border border-dark-700"
+            className="bg-dark-800/80 rounded-xl p-4 border border-dark-700/50 hover:border-obsidian-500/30 transition-all duration-300 hover:shadow-glow/30"
           >
-            <div className="flex items-center text-gray-400 mb-2">
+            <div className="flex items-center text-obsidian-400 mb-2">
               <card.icon className="w-4 h-4 mr-1.5" />
-              <span className="text-xs">{card.label}</span>
+              <span className="text-xs text-gray-400">{card.label}</span>
             </div>
             <p className={`text-white font-semibold ${card.mono ? 'font-mono text-sm' : ''}`}>
               {card.value}
@@ -157,26 +156,27 @@ export default function OverviewTab({ server, stats }: Props) {
       {server.status === 'running' && history.length > 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* CPU Chart */}
-          <div className="bg-dark-800 rounded-xl p-5 border border-dark-700">
+          <div className="bg-dark-800/80 rounded-xl p-5 border border-dark-700/50 backdrop-blur-sm">
             <h3 className="text-lg font-semibold text-white mb-4">Utilisation CPU</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={history}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
                   <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
                   <YAxis stroke="#64748b" fontSize={12} domain={[0, 100]} unit="%" />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
+                      backgroundColor: '#0b0f19',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      borderRadius: '12px',
+                      boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)',
                     }}
                     labelStyle={{ color: '#94a3b8' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="cpu"
-                    stroke="#8b5cf6"
+                    stroke="#a855f7"
                     strokeWidth={2}
                     dot={false}
                     name="CPU"
@@ -187,26 +187,27 @@ export default function OverviewTab({ server, stats }: Props) {
           </div>
 
           {/* Memory Chart */}
-          <div className="bg-dark-800 rounded-xl p-5 border border-dark-700">
+          <div className="bg-dark-800/80 rounded-xl p-5 border border-dark-700/50 backdrop-blur-sm">
             <h3 className="text-lg font-semibold text-white mb-4">Utilisation RAM</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={history}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
                   <XAxis dataKey="time" stroke="#64748b" fontSize={12} />
                   <YAxis stroke="#64748b" fontSize={12} domain={[0, 100]} unit="%" />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
+                      backgroundColor: '#0b0f19',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      borderRadius: '12px',
+                      boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)',
                     }}
                     labelStyle={{ color: '#94a3b8' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="memory"
-                    stroke="#3b82f6"
+                    stroke="#6366f1"
                     strokeWidth={2}
                     dot={false}
                     name="RAM"
@@ -219,7 +220,7 @@ export default function OverviewTab({ server, stats }: Props) {
       )}
 
       {/* Server Info */}
-      <div className="bg-dark-800 rounded-xl p-5 border border-dark-700">
+      <div className="bg-dark-800/80 rounded-xl p-5 border border-dark-700/50 backdrop-blur-sm">
         <h3 className="text-lg font-semibold text-white mb-4">Informations du serveur</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

@@ -104,12 +104,16 @@ export function setupWebSocket(io: SocketIOServer) {
             });
 
             socket.on('disconnect', () => {
-              logStream.destroy();
+              if ('destroy' in logStream && typeof logStream.destroy === 'function') {
+                (logStream as NodeJS.ReadableStream & { destroy: () => void }).destroy();
+              }
             });
 
             socket.on('server:unsubscribe', (unsubServerId: string) => {
               if (unsubServerId === serverId) {
-                logStream.destroy();
+                if ('destroy' in logStream && typeof logStream.destroy === 'function') {
+                  (logStream as NodeJS.ReadableStream & { destroy: () => void }).destroy();
+                }
                 socket.leave(`server:${serverId}`);
               }
             });

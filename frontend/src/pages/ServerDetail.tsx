@@ -233,12 +233,17 @@ export default function ServerDetail() {
         <div className="flex items-center gap-4">
           <Link 
             to="/servers" 
-            className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-obsidian-400 hover:bg-dark-700/50 rounded-lg transition-all"
           >
             ← Retour
           </Link>
           <div className="flex items-center gap-3">
-            <div className={clsx('h-3 w-3 rounded-full', getStatusColor(server.status))} />
+            <div className={clsx(
+              'h-3 w-3 rounded-full',
+              getStatusColor(server.status),
+              server.status === 'running' && 'shadow-[0_0_8px_rgba(34,197,94,0.6)]',
+              server.status === 'error' && 'shadow-[0_0_8px_rgba(239,68,68,0.6)]'
+            )} />
             <div>
               <h1 className="text-2xl font-bold text-gray-100">{server.name}</h1>
               <p className="text-sm text-gray-400 capitalize">{server.gameType}</p>
@@ -263,7 +268,7 @@ export default function ServerDetail() {
             <button
               onClick={() => handleAction('start')}
               disabled={actionLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] disabled:opacity-50 text-white font-medium rounded-lg transition-all"
             >
               <PlayIcon className="h-4 w-4" />
               Démarrer
@@ -274,7 +279,7 @@ export default function ServerDetail() {
               <button
                 onClick={() => handleAction('restart')}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-dark-700/80 hover:bg-dark-600 border border-dark-600 disabled:opacity-50 text-white font-medium rounded-lg transition-all"
               >
                 <ArrowPathIcon className="h-4 w-4" />
                 Redémarrer
@@ -282,7 +287,7 @@ export default function ServerDetail() {
               <button
                 onClick={() => handleAction('stop')}
                 disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] disabled:opacity-50 text-white font-medium rounded-lg transition-all"
               >
                 <StopIcon className="h-4 w-4" />
                 Arrêter
@@ -292,7 +297,7 @@ export default function ServerDetail() {
           <button
             onClick={() => handleAction('delete')}
             disabled={actionLoading}
-            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-600/20 rounded-lg transition-colors"
+            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-600/20 rounded-lg transition-all"
             title="Supprimer"
           >
             <TrashIcon className="h-5 w-5" />
@@ -301,20 +306,20 @@ export default function ServerDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-dark-700">
+      <div className="border-b border-dark-700/50">
         <nav className="flex space-x-1 overflow-x-auto pb-px">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={clsx(
-                'flex items-center gap-2 py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
+                'flex items-center gap-2 py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-all duration-300',
                 activeTab === tab.id
-                  ? 'border-purple-500 text-purple-400'
-                  : 'border-transparent text-gray-400 hover:text-white hover:border-dark-600'
+                  ? 'border-obsidian-500 text-obsidian-400 bg-obsidian-500/10'
+                  : 'border-transparent text-gray-400 hover:text-white hover:border-dark-600 hover:bg-dark-800/30'
               )}
             >
-              <tab.icon className="h-5 w-5" />
+              <tab.icon className={clsx('h-5 w-5', activeTab === tab.id && 'text-obsidian-400')} />
               {tab.name}
             </button>
           ))}

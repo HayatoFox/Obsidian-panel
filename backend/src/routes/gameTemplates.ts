@@ -128,11 +128,12 @@ router.delete('/:id', requireAdmin, async (req: AuthRequest, res: Response): Pro
 router.post('/seed', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const defaultTemplates = [
+      // ==================== MINECRAFT ====================
       {
         name: 'minecraft-java',
         displayName: 'Minecraft Java Edition',
         category: 'minecraft',
-        description: 'Vanilla Minecraft Java server with support for Paper, Spigot, Forge, and Fabric',
+        description: 'Serveur Minecraft Java avec support Paper, Spigot, Forge et Fabric',
         dockerImage: 'itzg/minecraft-server:latest',
         defaultPort: 25565,
         defaultQueryPort: 25565,
@@ -142,71 +143,71 @@ router.post('/seed', requireAdmin, async (req: AuthRequest, res: Response): Prom
         defaultDisk: 10240,
         startupCommand: '',
         configSchema: JSON.stringify({
-          version: { type: 'string', default: 'LATEST', description: 'Minecraft version' },
+          version: { type: 'string', default: 'LATEST', description: 'Version Minecraft' },
           serverType: { type: 'select', options: ['VANILLA', 'PAPER', 'SPIGOT', 'FORGE', 'FABRIC'], default: 'VANILLA' },
           difficulty: { type: 'select', options: ['peaceful', 'easy', 'normal', 'hard'], default: 'normal' },
           gamemode: { type: 'select', options: ['survival', 'creative', 'adventure', 'spectator'], default: 'survival' },
           maxPlayers: { type: 'number', min: 1, max: 100, default: 20 },
-          motd: { type: 'string', default: 'A Minecraft Server' },
+          motd: { type: 'string', default: 'Un serveur Minecraft' },
           onlineMode: { type: 'boolean', default: true },
           pvp: { type: 'boolean', default: true },
           allowNether: { type: 'boolean', default: true }
         }),
         envTemplate: JSON.stringify({
           EULA: 'TRUE'
-        })
-      },
-      {
-        name: 'minecraft-bedrock',
-        displayName: 'Minecraft Bedrock Edition',
-        category: 'minecraft',
-        description: 'Official Minecraft Bedrock Dedicated Server',
-        dockerImage: 'itzg/minecraft-bedrock-server:latest',
-        defaultPort: 19132,
-        defaultQueryPort: 19132,
-        defaultRconPort: null,
-        defaultMemory: 1024,
-        defaultCpu: 1.0,
-        defaultDisk: 5120,
-        startupCommand: '',
-        configSchema: JSON.stringify({
-          version: { type: 'string', default: 'LATEST', description: 'Bedrock version' },
-          difficulty: { type: 'select', options: ['peaceful', 'easy', 'normal', 'hard'], default: 'normal' },
-          gamemode: { type: 'select', options: ['survival', 'creative', 'adventure'], default: 'survival' },
-          maxPlayers: { type: 'number', min: 1, max: 30, default: 10 }
         }),
-        envTemplate: JSON.stringify({
-          EULA: 'TRUE'
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 25565, rcon: 25575 },
+            { port: 25566, rcon: 25576 },
+            { port: 25567, rcon: 25577 },
+            { port: 25568, rcon: 25578 },
+            { port: 25569, rcon: 25579 },
+            { port: 25570, rcon: 25580 }
+          ],
+          protocol: 'tcp+udp',
+          rconProtocol: 'tcp'
         })
       },
+      // ==================== SOURCE ENGINE (GMod, CS2) ====================
       {
-        name: 'csgo',
-        displayName: 'Counter-Strike: Global Offensive',
+        name: 'gmod',
+        displayName: 'Garry\'s Mod',
         category: 'steamcmd',
-        description: 'CS:GO Dedicated Server via SteamCMD',
-        dockerImage: 'cm2network/csgo:latest',
+        description: 'Serveur Garry\'s Mod - Sandbox physics game',
+        dockerImage: 'cm2network/gmod:latest',
         defaultPort: 27015,
         defaultQueryPort: 27015,
         defaultRconPort: 27015,
         defaultMemory: 2048,
         defaultCpu: 2.0,
-        defaultDisk: 30720,
-        startupCommand: './srcds_run -game csgo',
+        defaultDisk: 20480,
+        startupCommand: './srcds_run -game garrysmod',
         configSchema: JSON.stringify({
-          maxPlayers: { type: 'number', min: 2, max: 64, default: 16 },
-          tickrate: { type: 'select', options: ['64', '128'], default: '64' },
-          gameType: { type: 'select', options: ['0', '1', '2', '3', '4', '5'], default: '0' },
-          gameMode: { type: 'select', options: ['0', '1', '2'], default: '0' }
+          maxPlayers: { type: 'number', min: 2, max: 128, default: 24 },
+          gamemode: { type: 'select', options: ['sandbox', 'terrortown', 'prop_hunt', 'murder', 'darkrp', 'deathrun'], default: 'sandbox' },
+          map: { type: 'string', default: 'gm_flatgrass' },
+          workshopCollection: { type: 'string', default: '', description: 'ID de collection Workshop' },
+          srcdsToken: { type: 'string', default: '', description: 'Token GSLT Steam (requis)' }
         }),
-        envTemplate: JSON.stringify({
-          SRCDS_TOKEN: ''
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 27015 },
+            { port: 27016 },
+            { port: 27017 },
+            { port: 27018 },
+            { port: 27019 },
+            { port: 27020 }
+          ],
+          protocol: 'tcp+udp'
         })
       },
       {
         name: 'cs2',
         displayName: 'Counter-Strike 2',
         category: 'steamcmd',
-        description: 'CS2 Dedicated Server via SteamCMD',
+        description: 'Serveur Counter-Strike 2 dédié',
         dockerImage: 'joedwards32/cs2:latest',
         defaultPort: 27015,
         defaultQueryPort: 27015,
@@ -216,20 +217,36 @@ router.post('/seed', requireAdmin, async (req: AuthRequest, res: Response): Prom
         defaultDisk: 40960,
         startupCommand: '',
         configSchema: JSON.stringify({
+          serverName: { type: 'string', default: 'CS2 Server' },
           maxPlayers: { type: 'number', min: 2, max: 64, default: 16 },
           tickrate: { type: 'select', options: ['64', '128'], default: '128' },
-          gameType: { type: 'select', options: ['0', '1', '2', '3'], default: '0' },
-          gameMode: { type: 'select', options: ['0', '1', '2'], default: '0' }
+          gameType: { type: 'select', options: [
+            { value: '0', label: 'Casual' },
+            { value: '1', label: 'Compétitif' },
+            { value: '2', label: 'Wingman' },
+            { value: '3', label: 'Deathmatch' }
+          ], default: '0' },
+          map: { type: 'string', default: 'de_dust2' }
         }),
-        envTemplate: JSON.stringify({
-          CS2_SERVERNAME: 'CS2 Server'
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 27015 },
+            { port: 27016 },
+            { port: 27017 },
+            { port: 27018 },
+            { port: 27019 },
+            { port: 27020 }
+          ],
+          protocol: 'tcp+udp'
         })
       },
+      // ==================== VALHEIM ====================
       {
         name: 'valheim',
         displayName: 'Valheim',
         category: 'steamcmd',
-        description: 'Valheim Dedicated Server',
+        description: 'Serveur Valheim - Survie Viking avec amis',
         dockerImage: 'lloesche/valheim-server:latest',
         defaultPort: 2456,
         defaultQueryPort: 2457,
@@ -239,48 +256,101 @@ router.post('/seed', requireAdmin, async (req: AuthRequest, res: Response): Prom
         defaultDisk: 5120,
         startupCommand: '',
         configSchema: JSON.stringify({
-          serverName: { type: 'string', default: 'Valheim Server' },
+          serverName: { type: 'string', default: 'Serveur Valheim' },
           worldName: { type: 'string', default: 'Dedicated' },
-          password: { type: 'string', default: '' },
-          public: { type: 'boolean', default: true }
+          password: { type: 'string', default: '', description: 'Min 5 caractères ou vide' },
+          public: { type: 'boolean', default: true },
+          crossplay: { type: 'boolean', default: false }
         }),
-        envTemplate: JSON.stringify({
-          SERVER_NAME: 'Valheim Server',
-          WORLD_NAME: 'Dedicated',
-          SERVER_PASS: '',
-          SERVER_PUBLIC: 'true'
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 2456, query: 2457, steam: 2458 },
+            { port: 2459, query: 2460, steam: 2461 },
+            { port: 2462, query: 2463, steam: 2464 },
+            { port: 2465, query: 2466, steam: 2467 }
+          ],
+          protocol: 'udp',
+          note: 'Valheim nécessite 3 ports consécutifs par serveur'
         })
       },
+      // ==================== PALWORLD ====================
       {
-        name: 'rust',
-        displayName: 'Rust',
+        name: 'palworld',
+        displayName: 'Palworld',
         category: 'steamcmd',
-        description: 'Rust Dedicated Server',
-        dockerImage: 'didstopia/rust-server:latest',
-        defaultPort: 28015,
-        defaultQueryPort: 28016,
-        defaultRconPort: 28016,
+        description: 'Serveur Palworld - Pokémon meets Survival',
+        dockerImage: 'thijsvanloef/palworld-server-docker:latest',
+        defaultPort: 8211,
+        defaultQueryPort: 27015,
+        defaultRconPort: 25575,
         defaultMemory: 8192,
         defaultCpu: 4.0,
         defaultDisk: 20480,
         startupCommand: '',
         configSchema: JSON.stringify({
-          serverName: { type: 'string', default: 'Rust Server' },
-          maxPlayers: { type: 'number', min: 10, max: 500, default: 100 },
-          worldSize: { type: 'number', min: 1000, max: 6000, default: 3500 },
-          seed: { type: 'number', default: 12345 }
+          serverName: { type: 'string', default: 'Serveur Palworld' },
+          serverDescription: { type: 'string', default: '' },
+          maxPlayers: { type: 'number', min: 1, max: 32, default: 16 },
+          password: { type: 'string', default: '' },
+          difficulty: { type: 'select', options: ['None', 'Normal', 'Difficult'], default: 'Normal' },
+          dayTimeSpeedRate: { type: 'number', min: 0.1, max: 5, default: 1.0 },
+          nightTimeSpeedRate: { type: 'number', min: 0.1, max: 5, default: 1.0 },
+          expRate: { type: 'number', min: 0.1, max: 20, default: 1.0 }
         }),
         envTemplate: JSON.stringify({
-          RUST_SERVER_NAME: 'Rust Server',
-          RUST_SERVER_MAXPLAYERS: '100',
-          RUST_SERVER_WORLDSIZE: '3500'
+          MULTITHREADING: 'true',
+          COMMUNITY: 'false'
+        }),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 8211, query: 27015 },
+            { port: 8212, query: 27016 },
+            { port: 8213, query: 27017 },
+            { port: 8214, query: 27018 },
+            { port: 8215, query: 27019 }
+          ],
+          protocol: 'udp'
         })
       },
+      // ==================== CORE KEEPER ====================
+      {
+        name: 'core-keeper',
+        displayName: 'Core Keeper',
+        category: 'steamcmd',
+        description: 'Serveur Core Keeper - Mining sandbox aventure',
+        dockerImage: 'escapefromtarkov/corekeeper:latest',
+        defaultPort: 27015,
+        defaultQueryPort: 27015,
+        defaultRconPort: null,
+        defaultMemory: 2048,
+        defaultCpu: 2.0,
+        defaultDisk: 5120,
+        startupCommand: '',
+        configSchema: JSON.stringify({
+          worldName: { type: 'string', default: 'CoreKeeperWorld' },
+          maxPlayers: { type: 'number', min: 1, max: 8, default: 8 },
+          gameId: { type: 'string', default: '', description: 'Game ID pour rejoindre' }
+        }),
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 27015 },
+            { port: 27016 },
+            { port: 27017 },
+            { port: 27018 },
+            { port: 27019 },
+            { port: 27020 }
+          ],
+          protocol: 'udp'
+        })
+      },
+      // ==================== TERRARIA ====================
       {
         name: 'terraria',
         displayName: 'Terraria',
         category: 'steamcmd',
-        description: 'Terraria Dedicated Server',
+        description: 'Serveur Terraria - Aventure 2D sandbox',
         dockerImage: 'ryshe/terraria:latest',
         defaultPort: 7777,
         defaultQueryPort: 7777,
@@ -293,33 +363,166 @@ router.post('/seed', requireAdmin, async (req: AuthRequest, res: Response): Prom
           worldName: { type: 'string', default: 'world' },
           maxPlayers: { type: 'number', min: 1, max: 255, default: 8 },
           password: { type: 'string', default: '' },
-          difficulty: { type: 'select', options: ['0', '1', '2', '3'], default: '0' }
+          difficulty: { type: 'select', options: [
+            { value: '0', label: 'Normal' },
+            { value: '1', label: 'Expert' },
+            { value: '2', label: 'Master' },
+            { value: '3', label: 'Journey' }
+          ], default: '0' },
+          worldSize: { type: 'select', options: [
+            { value: '1', label: 'Petit' },
+            { value: '2', label: 'Moyen' },
+            { value: '3', label: 'Grand' }
+          ], default: '2' }
         }),
-        envTemplate: JSON.stringify({
-          WORLD_FILENAME: 'world.wld'
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 7777 },
+            { port: 7778 },
+            { port: 7779 },
+            { port: 7780 },
+            { port: 7781 },
+            { port: 7782 }
+          ],
+          protocol: 'tcp'
         })
       },
+      // ==================== VINTAGE STORY ====================
       {
-        name: 'ark',
-        displayName: 'ARK: Survival Evolved',
+        name: 'vintage-story',
+        displayName: 'Vintage Story',
         category: 'steamcmd',
-        description: 'ARK Dedicated Server',
-        dockerImage: 'hermsi/ark-server:latest',
-        defaultPort: 7777,
-        defaultQueryPort: 27015,
-        defaultRconPort: 27020,
-        defaultMemory: 8192,
-        defaultCpu: 4.0,
-        defaultDisk: 51200,
+        description: 'Serveur Vintage Story - Survie médiévale réaliste',
+        dockerImage: 'devidian/vintagestory:latest',
+        defaultPort: 42420,
+        defaultQueryPort: 42420,
+        defaultRconPort: null,
+        defaultMemory: 4096,
+        defaultCpu: 2.0,
+        defaultDisk: 10240,
         startupCommand: '',
         configSchema: JSON.stringify({
-          sessionName: { type: 'string', default: 'ARK Server' },
-          maxPlayers: { type: 'number', min: 1, max: 127, default: 70 },
-          map: { type: 'select', options: ['TheIsland', 'TheCenter', 'Ragnarok', 'Aberration', 'Extinction', 'Valguero', 'Genesis', 'CrystalIsles', 'LostIsland', 'Fjordur'], default: 'TheIsland' }
+          serverName: { type: 'string', default: 'Vintage Story Server' },
+          maxPlayers: { type: 'number', min: 1, max: 100, default: 16 },
+          password: { type: 'string', default: '' },
+          worldSeed: { type: 'string', default: '' },
+          mapSizeX: { type: 'number', min: 100000, max: 10000000, default: 1024000 },
+          mapSizeZ: { type: 'number', min: 100000, max: 10000000, default: 1024000 }
         }),
-        envTemplate: JSON.stringify({
-          SESSIONNAME: 'ARK Server',
-          am_ark_MaxPlayers: '70'
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 42420 },
+            { port: 42421 },
+            { port: 42422 },
+            { port: 42423 },
+            { port: 42424 },
+            { port: 42425 }
+          ],
+          protocol: 'tcp'
+        })
+      },
+      // ==================== STARDEW VALLEY ====================
+      {
+        name: 'stardew-valley',
+        displayName: 'Stardew Valley',
+        category: 'other',
+        description: 'Serveur Stardew Valley multijoueur',
+        dockerImage: 'noenv/stardewvalley-server:latest',
+        defaultPort: 24642,
+        defaultQueryPort: 24642,
+        defaultRconPort: null,
+        defaultMemory: 1024,
+        defaultCpu: 1.0,
+        defaultDisk: 2048,
+        startupCommand: '',
+        configSchema: JSON.stringify({
+          farmName: { type: 'string', default: 'Obsidian Farm' },
+          maxPlayers: { type: 'number', min: 1, max: 8, default: 4 },
+          profitMargin: { type: 'select', options: [
+            { value: '1', label: '100% (Normal)' },
+            { value: '0.75', label: '75%' },
+            { value: '0.5', label: '50%' },
+            { value: '0.25', label: '25%' }
+          ], default: '1' }
+        }),
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 24642 },
+            { port: 24643 },
+            { port: 24644 },
+            { port: 24645 },
+            { port: 24646 },
+            { port: 24647 }
+          ],
+          protocol: 'udp'
+        })
+      },
+      // ==================== HYTALE (PLACEHOLDER) ====================
+      {
+        name: 'hytale',
+        displayName: 'Hytale',
+        category: 'other',
+        description: 'Serveur Hytale (À venir - Placeholder)',
+        dockerImage: 'placeholder/hytale:latest',
+        defaultPort: 25000,
+        defaultQueryPort: 25000,
+        defaultRconPort: null,
+        defaultMemory: 4096,
+        defaultCpu: 2.0,
+        defaultDisk: 20480,
+        startupCommand: '',
+        configSchema: JSON.stringify({
+          serverName: { type: 'string', default: 'Hytale Server' },
+          maxPlayers: { type: 'number', min: 1, max: 100, default: 20 }
+        }),
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 25000 },
+            { port: 25001 },
+            { port: 25002 },
+            { port: 25003 },
+            { port: 25004 },
+            { port: 25005 }
+          ],
+          protocol: 'tcp+udp',
+          note: 'Ports placeholder - le jeu n\'est pas encore sorti'
+        })
+      },
+      // ==================== ABIOTIC FACTOR ====================
+      {
+        name: 'abiotic-factor',
+        displayName: 'Abiotic Factor',
+        category: 'steamcmd',
+        description: 'Serveur Abiotic Factor - Survie coopérative dans une installation scientifique',
+        dockerImage: 'ich777/steamcmd:abiotic-factor',
+        defaultPort: 7777,
+        defaultQueryPort: 27015,
+        defaultRconPort: null,
+        defaultMemory: 4096,
+        defaultCpu: 2.0,
+        defaultDisk: 10240,
+        startupCommand: '',
+        configSchema: JSON.stringify({
+          serverName: { type: 'string', default: 'Abiotic Factor Server' },
+          maxPlayers: { type: 'number', min: 1, max: 6, default: 6 },
+          password: { type: 'string', default: '' },
+          saveInterval: { type: 'number', min: 60, max: 3600, default: 300, description: 'Intervalle de sauvegarde en secondes' }
+        }),
+        envTemplate: JSON.stringify({}),
+        portConfig: JSON.stringify({
+          portRanges: [
+            { port: 7777, query: 27015 },
+            { port: 7778, query: 27016 },
+            { port: 7779, query: 27017 },
+            { port: 7780, query: 27018 },
+            { port: 7781, query: 27019 },
+            { port: 7782, query: 27020 }
+          ],
+          protocol: 'udp'
         })
       }
     ];
