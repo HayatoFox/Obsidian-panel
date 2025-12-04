@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="obsidianGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6f5f91;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2a2535;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="url(#obsidianGrad)" stroke="#8172a4" stroke-width="2"/>
+  <polygon points="50,15 80,30 80,70 50,85 20,70 20,30" fill="none" stroke="#9a8db7" stroke-width="1.5" opacity="0.7"/>
+  <polygon points="50,25 70,35 70,65 50,75 30,65 30,35" fill="#413952" stroke="#b8b0cf" stroke-width="1"/>
+  <circle cx="50" cy="50" r="8" fill="#d3cfe3"/>
+</svg>

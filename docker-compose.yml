@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Obsidian Panel Backend
+  panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obsidian-panel
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - DATABASE_URL=file:/app/data/obsidian.db
+      - DOCKER_SOCKET=/var/run/docker.sock
+      - FRONTEND_URL=http://localhost:5173
+      - DATA_DIR=/var/lib/obsidian-panel
+      - SERVERS_DIR=/var/lib/obsidian-panel/servers
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - panel_data:/app/data
+      - servers_data:/var/lib/obsidian-panel/servers
+    networks:
+      - obsidian-network
+
+  # Obsidian Panel Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: obsidian-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    depends_on:
+      - panel
+    networks:
+      - obsidian-network
+
+volumes:
+  panel_data:
+    driver: local
+  servers_data:
+    driver: local
+
+networks:
+  obsidian-network:
+    driver: bridge

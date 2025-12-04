@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-950 text-gray-100 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-obsidian-600 hover:bg-obsidian-500 text-white;
+  }
+  
+  .btn-secondary {
+    @apply bg-dark-700 hover:bg-dark-600 text-gray-200;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-500 text-white;
+  }
+  
+  .btn-success {
+    @apply bg-green-600 hover:bg-green-500 text-white;
+  }
+  
+  .input {
+    @apply w-full px-4 py-2 bg-dark-800 border border-dark-600 rounded-lg 
+           text-gray-100 placeholder-gray-500
+           focus:outline-none focus:border-obsidian-500 focus:ring-1 focus:ring-obsidian-500
+           transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-dark-900 rounded-xl border border-dark-700 p-6;
+  }
+  
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 
+           hover:bg-dark-800 hover:text-gray-100 transition-colors duration-200;
+  }
+  
+  .sidebar-link.active {
+    @apply bg-obsidian-600/20 text-obsidian-400 border-l-2 border-obsidian-500;
+  }
+}
+
+/* XTerm styles */
+.xterm {
+  padding: 8px;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: #1e1f22;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #4c4f55;
+  border-radius: 4px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #61646b;
+}

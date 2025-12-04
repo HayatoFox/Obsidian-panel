@@ -1,0 +1,8 @@
+export { default as OverviewTab } from './OverviewTab'
+export { default as ConsoleTab } from './ConsoleTab'
+export { default as FileManagerTab } from './FileManagerTab'
+export { default as SettingsTab } from './SettingsTab'
+export { default as ActivityLogsTab } from './ActivityLogsTab'
+export { default as PlayerManagerTab } from './PlayerManagerTab'
+export { default as BackupManagerTab } from './BackupManagerTab'
+export { default as SchedulesTab } from './SchedulesTab'

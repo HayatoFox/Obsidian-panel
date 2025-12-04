@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      String   @default("user") // admin, user
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  servers   Server[]
+  sessions  Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Server {
+  id            String   @id @default(uuid())
+  name          String
+  gameType      String   // minecraft, csgo, valheim, rust, etc.
+  containerId   String?  @unique
+  containerName String   @unique
+  status        String   @default("stopped") // stopped, starting, running, stopping, error
+  
+  // Network
+  port          Int
+  queryPort     Int?
+  rconPort      Int?
+  
+  // Resources
+  memoryLimit   Int      @default(2048) // MB
+  cpuLimit      Float    @default(2.0)  // CPU cores
+  diskLimit     Int      @default(10240) // MB
+  
+  // Game specific settings (JSON)
+  gameConfig    String   @default("{}")
+  
+  // Paths
+  dataPath      String
+  
+  // Owner
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastStartedAt DateTime?
+  
+  logs          ServerLog[]
+  backups       Backup[]
+}
+
+model ServerLog {
+  id        String   @id @default(uuid())
+  serverId  String
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  level     String   // info, warn, error
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model Backup {
+  id        String   @id @default(uuid())
+  serverId  String
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  name      String
+  path      String
+  size      Int      // bytes
+  createdAt DateTime @default(now())
+}
+
+model GameTemplate {
+  id          String @id @default(uuid())
+  name        String @unique
+  displayName String
+  category    String // minecraft, steamcmd
+  description String
+  
+  // Docker image
+  dockerImage String
+  
+  // Default ports
+  defaultPort      Int
+  defaultQueryPort Int?
+  defaultRconPort  Int?
+  
+  // Default resources
+  defaultMemory Int @default(2048)
+  defaultCpu    Float @default(2.0)
+  defaultDisk   Int @default(10240)
+  
+  // Configuration schema (JSON)
+  configSchema String @default("{}")
+  
+  // Startup command
+  startupCommand String
+  
+  // Environment variables template (JSON)
+  envTemplate String @default("{}")
+  
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Setting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}

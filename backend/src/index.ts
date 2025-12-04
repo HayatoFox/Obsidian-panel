@@ -1,0 +1,73 @@
+import express from 'express';
+import cors from 'cors';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import dotenv from 'dotenv';
+
+import { logger } from './utils/logger';
+import { authRouter } from './routes/auth';
+import { serverRouter } from './routes/servers';
+import { gameTemplateRouter } from './routes/gameTemplates';
+import { userRouter } from './routes/users';
+import { setupWebSocket } from './websocket';
+import { authenticateToken } from './middleware/auth';
+import { DockerService } from './services/docker';
+
+dotenv.config();
+
+const app = express();
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Routes
+app.use('/api/auth', authRouter);
+app.use('/api/servers', authenticateToken, serverRouter);
+app.use('/api/game-templates', authenticateToken, gameTemplateRouter);
+app.use('/api/users', authenticateToken, userRouter);
+
+// Docker status
+app.get('/api/docker/status', authenticateToken, async (req, res) => {
+  try {
+    const dockerService = DockerService.getInstance();
+    const info = await dockerService.getInfo();
+    res.json({ connected: true, info });
+  } catch (error) {
+    res.status(500).json({ connected: false, error: 'Docker not available' });
+  }
+});
+
+// WebSocket setup
+setupWebSocket(io);
+
+// Error handling
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+const PORT = process.env.PORT || 3001;
+
+httpServer.listen(PORT, () => {
+  logger.info(`🚀 Obsidian Panel API running on port ${PORT}`);
+  logger.info(`📡 WebSocket server ready`);
+});
+
+export { io };
