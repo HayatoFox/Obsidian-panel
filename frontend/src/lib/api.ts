@@ -5,9 +5,15 @@ const baseURL = rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/$/, '
 
 const api = axios.create({
   baseURL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+})
+
+// Request interceptor to set Content-Type appropriately
+api.interceptors.request.use((config) => {
+  // Don't set Content-Type for FormData - let the browser set it with boundary
+  if (!(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json'
+  }
+  return config
 })
 
 // Response interceptor for error handling
