@@ -22,7 +22,6 @@ export default function ConsoleTab({ server, visible = true }: Props) {
   const terminalInstance = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
   const initialized = useRef(false)
-  const socketConnected = useRef(false)
 
   useEffect(() => {
     // Initialize immediately if DOM is ready
