@@ -430,13 +430,19 @@ export class ServerService {
       // Stop and remove old container
       if (server.containerId) {
         try {
+          logger.info(`Stopping container ${server.containerId}...`);
           await this.dockerService.stopContainer(server.containerId);
-        } catch (e) {
+          logger.info(`Container ${server.containerId} stopped`);
+        } catch (e: any) {
+          logger.info(`Container stop skipped: ${e.message}`);
           // Container might already be stopped
         }
         try {
+          logger.info(`Removing container ${server.containerId}...`);
           await this.dockerService.removeContainer(server.containerId, true);
-        } catch (e) {
+          logger.info(`Container ${server.containerId} removed`);
+        } catch (e: any) {
+          logger.info(`Container remove skipped: ${e.message}`);
           // Container might already be removed
         }
       }
@@ -477,8 +483,11 @@ export class ServerService {
         restart: 'unless-stopped'
       };
 
+      logger.info(`Creating new container with config:`, JSON.stringify(containerConfig, null, 2));
+
       // Create new container
       const container = await this.dockerService.createContainer(containerConfig);
+      logger.info(`New container created with ID: ${container.id}`);
 
       // Update database with new container ID
       await prisma.server.update({
@@ -489,8 +498,9 @@ export class ServerService {
         }
       });
 
-      logger.info(`Server ${server.name} container recreated successfully`);
-    } catch (error) {
+      logger.info(`Server ${server.name} container recreated successfully, status set to 'stopped'`);
+    } catch (error: any) {
+      logger.error(`Error recreating container: ${error.message}`, error);
       await prisma.server.update({
         where: { id: serverId },
         data: { status: 'error' }
