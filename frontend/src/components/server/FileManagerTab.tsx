@@ -676,7 +676,11 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
     const selectedName = Array.from(selectedFiles)[0];
     const item = files.find(f => f.name === selectedName);
     if (!item || item.type !== 'file') return false;
-    return ['zip', 'tar', 'gz'].includes(item.extension?.toLowerCase() || '');
+    const name = item.name.toLowerCase();
+    const ext = item.extension?.toLowerCase() || '';
+    // Check for .tar.gz, .tgz, .tar, .zip
+    return ext === 'zip' || ext === 'tar' || ext === 'tgz' || 
+           name.endsWith('.tar.gz') || name.endsWith('.tar');
   };
 
   return (
