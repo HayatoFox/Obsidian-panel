@@ -7,7 +7,19 @@ import { logger } from './utils/logger';
 const prisma = new PrismaClient();
 
 // Parse Docker multiplexed stream (8-byte header per frame)
+// Returns null if the buffer doesn't look like a multiplexed stream
 function parseDockerStream(buffer: Buffer): string {
+  // Check if this looks like a multiplexed stream (first byte is stream type: 0, 1, or 2)
+  // and bytes 1-3 are zeros (padding)
+  const isMultiplexed = buffer.length >= 8 && 
+    (buffer[0] === 0 || buffer[0] === 1 || buffer[0] === 2) &&
+    buffer[1] === 0 && buffer[2] === 0 && buffer[3] === 0;
+
+  if (!isMultiplexed) {
+    // Not multiplexed, return as plain text
+    return buffer.toString('utf8');
+  }
+
   const messages: string[] = [];
   let offset = 0;
 
@@ -117,39 +129,105 @@ export function setupWebSocket(io: SocketIOServer) {
         if (server.containerId) {
           try {
             const container = dockerService.getContainer(server.containerId);
-            const logStream = await container.logs({
-              follow: true,
+            
+            // Check container info to see if it uses TTY
+            const containerInfo = await container.inspect();
+            const isTty = containerInfo.Config.Tty;
+            const isRunning = containerInfo.State.Running;
+            
+            logger.info(`Container ${server.containerId} - TTY: ${isTty}, Running: ${isRunning}`);
+            
+            // First, get existing logs (history)
+            const existingLogs = await container.logs({
+              follow: false,
               stdout: true,
               stderr: true,
-              tail: 50,
-              timestamps: true
+              tail: 100,
+              timestamps: false
             });
 
-            logStream.on('data', (chunk: Buffer) => {
-              const message = parseDockerStream(chunk);
-              if (message.trim()) {
-                io.to(`server:${serverId}`).emit('server:log', {
+            // Process existing logs
+            if (existingLogs) {
+              let logsText: string;
+              if (Buffer.isBuffer(existingLogs)) {
+                logsText = isTty ? existingLogs.toString('utf8') : parseDockerStream(existingLogs);
+              } else {
+                logsText = String(existingLogs);
+              }
+              
+              const lines = logsText.split('\n').filter(line => line.trim());
+              for (const line of lines) {
+                socket.emit('server:log', {
                   serverId,
-                  message,
+                  message: line,
                   timestamp: new Date().toISOString()
                 });
               }
-            });
+            }
 
-            socket.on('disconnect', () => {
-              if ('destroy' in logStream && typeof logStream.destroy === 'function') {
-                (logStream as NodeJS.ReadableStream & { destroy: () => void }).destroy();
-              }
-            });
+            // Then, stream new logs if container is running
+            if (isRunning) {
+              const logStream = await container.logs({
+                follow: true,
+                stdout: true,
+                stderr: true,
+                tail: 0, // Only new logs
+                timestamps: false,
+                since: Math.floor(Date.now() / 1000) // Only logs from now
+              });
 
-            socket.on('server:unsubscribe', (unsubServerId: string) => {
-              if (unsubServerId === serverId) {
-                if ('destroy' in logStream && typeof logStream.destroy === 'function') {
-                  (logStream as NodeJS.ReadableStream & { destroy: () => void }).destroy();
+              logStream.on('data', (chunk: Buffer) => {
+                let message: string;
+                
+                if (isTty) {
+                  message = chunk.toString('utf8');
+                } else {
+                  message = parseDockerStream(chunk);
                 }
-                socket.leave(`server:${serverId}`);
-              }
-            });
+                
+                if (message && message.trim()) {
+                  const lines = message.split('\n').filter(line => line.trim());
+                  for (const line of lines) {
+                    io.to(`server:${serverId}`).emit('server:log', {
+                      serverId,
+                      message: line,
+                      timestamp: new Date().toISOString()
+                    });
+                  }
+                }
+              });
+
+              logStream.on('error', (err) => {
+                logger.error(`Log stream error for ${serverId}:`, err);
+              });
+
+              logStream.on('end', () => {
+                logger.info(`Log stream ended for ${serverId}`);
+              });
+
+              socket.on('disconnect', () => {
+                try {
+                  if ('destroy' in logStream && typeof logStream.destroy === 'function') {
+                    (logStream as NodeJS.ReadableStream & { destroy: () => void }).destroy();
+                  }
+                } catch (e) {
+                  // Ignore cleanup errors
+                }
+              });
+
+              socket.on('server:unsubscribe', (unsubServerId: string) => {
+                if (unsubServerId === serverId) {
+                  try {
+                    if ('destroy' in logStream && typeof logStream.destroy === 'function') {
+                      (logStream as NodeJS.ReadableStream & { destroy: () => void }).destroy();
+                    }
+                  } catch (e) {
+                    // Ignore cleanup errors
+                  }
+                  socket.leave(`server:${serverId}`);
+                }
+              });
+            }
           } catch (error) {
             logger.error('Error streaming logs:', error);
           }

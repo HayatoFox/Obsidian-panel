@@ -86,7 +86,7 @@ export class ServerService {
         gameType: options.gameType,
         containerId: container.id,
         containerName,
-        status: 'stopped',
+        status: 'starting',
         port: options.port,
         queryPort: template.defaultQueryPort ? options.port + 1 : null,
         rconPort: template.defaultRconPort ? options.port + 2 : null,
@@ -99,7 +99,30 @@ export class ServerService {
     });
 
     logger.info(`Server ${server.name} created with container ${containerName}`);
-    return server;
+
+    // Auto-start the server after creation
+    try {
+      logger.info(`Auto-starting server ${server.name}...`);
+      await this.dockerService.startContainer(container.id);
+      await prisma.server.update({
+        where: { id: server.id },
+        data: { 
+          status: 'running',
+          lastStartedAt: new Date()
+        }
+      });
+      logger.info(`Server ${server.name} started successfully`);
+    } catch (startError) {
+      logger.error(`Failed to auto-start server ${server.name}:`, startError);
+      await prisma.server.update({
+        where: { id: server.id },
+        data: { status: 'stopped' }
+      });
+      // Don't throw - server was created successfully, just not started
+    }
+
+    // Return fresh server data
+    return await prisma.server.findUnique({ where: { id: server.id } }) || server;
   }
 
   private buildEnvFromConfig(
