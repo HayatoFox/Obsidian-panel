@@ -73,17 +73,8 @@ export default function ActivityLogsTab({ server }: Props) {
       const response = await api.get(`/servers/${server.id}/activity`)
       setLogs(response.data.logs || [])
     } catch (error) {
-      // Mock data en cas d'erreur
-      setLogs([
-        { id: '1', action: 'start', user: 'admin', details: 'Serveur démarré', timestamp: new Date(Date.now() - 3600000).toISOString() },
-        { id: '2', action: 'command', user: 'admin', details: 'say Hello everyone!', timestamp: new Date(Date.now() - 7200000).toISOString() },
-        { id: '3', action: 'settings', user: 'admin', details: 'RAM modifiée: 2048MB → 4096MB', timestamp: new Date(Date.now() - 86400000).toISOString() },
-        { id: '4', action: 'backup', user: 'admin', details: 'Backup automatique créé', timestamp: new Date(Date.now() - 172800000).toISOString() },
-        { id: '5', action: 'restart', user: 'moderator', details: 'Redémarrage manuel', timestamp: new Date(Date.now() - 259200000).toISOString() },
-        { id: '6', action: 'stop', user: 'admin', details: 'Serveur arrêté pour maintenance', timestamp: new Date(Date.now() - 345600000).toISOString() },
-        { id: '7', action: 'start', user: 'admin', details: 'Serveur redémarré après maintenance', timestamp: new Date(Date.now() - 345700000).toISOString() },
-        { id: '8', action: 'command', user: 'moderator', details: 'kick PlayerX Comportement inapproprié', timestamp: new Date(Date.now() - 432000000).toISOString() },
-      ])
+      // API error - show empty list
+      setLogs([])
     } finally {
       setLoading(false)
     }

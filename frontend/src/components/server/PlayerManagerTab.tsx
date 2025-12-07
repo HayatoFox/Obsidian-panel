@@ -53,13 +53,8 @@ export default function PlayerManagerTab({ server }: Props) {
       const response = await api.get(`/servers/${server.id}/players`)
       setPlayers(response.data.players || [])
     } catch (error) {
-      // Mock data
-      setPlayers([
-        { id: '1', name: 'Steve_Master', uuid: '550e8400-e29b-41d4-a716-446655440000', ping: 45, playtime: '12h 34m', joinedAt: new Date(Date.now() - 3600000).toISOString(), isOp: true, isBanned: false },
-        { id: '2', name: 'Alex_Builder', uuid: '550e8400-e29b-41d4-a716-446655440001', ping: 78, playtime: '5h 12m', joinedAt: new Date(Date.now() - 7200000).toISOString(), isOp: false, isBanned: false },
-        { id: '3', name: 'CreeperHunter99', uuid: '550e8400-e29b-41d4-a716-446655440002', ping: 23, playtime: '45h 00m', joinedAt: new Date(Date.now() - 1800000).toISOString(), isOp: false, isBanned: false },
-        { id: '4', name: 'DiamondKing', uuid: '550e8400-e29b-41d4-a716-446655440003', ping: 156, playtime: '2h 15m', joinedAt: new Date(Date.now() - 900000).toISOString(), isOp: false, isBanned: false },
-      ])
+      // API error - show empty list
+      setPlayers([])
     } finally {
       setLoading(false)
     }

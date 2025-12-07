@@ -51,19 +51,8 @@ export default function FileManagerTab({ server }: Props) {
       })
       setFiles(response.data.files || [])
     } catch (error) {
-      // En cas d'erreur, utiliser des données mock
-      setFiles([
-        { name: 'server.properties', type: 'file', size: 2456, modified: new Date().toISOString() },
-        { name: 'world', type: 'directory', size: 0, modified: new Date().toISOString() },
-        { name: 'plugins', type: 'directory', size: 0, modified: new Date().toISOString() },
-        { name: 'logs', type: 'directory', size: 0, modified: new Date().toISOString() },
-        { name: 'config', type: 'directory', size: 0, modified: new Date().toISOString() },
-        { name: 'server.jar', type: 'file', size: 48200000, modified: new Date().toISOString() },
-        { name: 'eula.txt', type: 'file', size: 156, modified: new Date().toISOString() },
-        { name: 'ops.json', type: 'file', size: 234, modified: new Date().toISOString() },
-        { name: 'whitelist.json', type: 'file', size: 89, modified: new Date().toISOString() },
-        { name: 'banned-players.json', type: 'file', size: 2, modified: new Date().toISOString() },
-      ])
+      // API error - show empty list
+      setFiles([])
     } finally {
       setLoading(false)
     }

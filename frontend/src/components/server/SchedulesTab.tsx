@@ -68,13 +68,8 @@ export default function SchedulesTab({ server }: Props) {
       const response = await api.get(`/servers/${server.id}/schedules`)
       setSchedules(response.data.schedules || [])
     } catch (error) {
-      // Mock data
-      setSchedules([
-        { id: '1', name: 'Restart quotidien', type: 'restart', cron: '0 4 * * *', enabled: true, lastRun: new Date(Date.now() - 86400000).toISOString(), nextRun: new Date(Date.now() + 43200000).toISOString() },
-        { id: '2', name: 'Backup journalier', type: 'backup', cron: '0 3 * * *', enabled: true, lastRun: new Date(Date.now() - 90000000).toISOString(), nextRun: new Date(Date.now() + 36000000).toISOString() },
-        { id: '3', name: 'Annonce horaire', type: 'command', command: 'say Le serveur redémarrera à 4h00!', cron: '0 * * * *', enabled: false, lastRun: null, nextRun: new Date(Date.now() + 3600000).toISOString() },
-        { id: '4', name: 'Sauvegarde hebdo', type: 'backup', cron: '0 2 * * 0', enabled: true, lastRun: new Date(Date.now() - 604800000).toISOString(), nextRun: new Date(Date.now() + 259200000).toISOString() },
-      ])
+      // API error - show empty list
+      setSchedules([])
     } finally {
       setLoading(false)
     }

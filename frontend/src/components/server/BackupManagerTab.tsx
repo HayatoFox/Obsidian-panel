@@ -50,14 +50,8 @@ export default function BackupManagerTab({ server }: Props) {
       const response = await api.get(`/servers/${server.id}/backups`)
       setBackups(response.data.backups || [])
     } catch (error) {
-      // Mock data
-      setBackups([
-        { id: '1', name: 'backup_2024-01-15_14-30', size: 524288000, createdAt: new Date(Date.now() - 86400000).toISOString(), type: 'auto', status: 'completed' },
-        { id: '2', name: 'backup_2024-01-14_14-30', size: 512000000, createdAt: new Date(Date.now() - 172800000).toISOString(), type: 'auto', status: 'completed' },
-        { id: '3', name: 'pre-update-backup', size: 498000000, createdAt: new Date(Date.now() - 259200000).toISOString(), type: 'manual', status: 'completed' },
-        { id: '4', name: 'backup_2024-01-12_14-30', size: 490000000, createdAt: new Date(Date.now() - 345600000).toISOString(), type: 'auto', status: 'completed' },
-        { id: '5', name: 'test-backup', size: 0, createdAt: new Date(Date.now() - 3600000).toISOString(), type: 'manual', status: 'failed' },
-      ])
+      // API error - show empty list
+      setBackups([])
     } finally {
       setLoading(false)
     }
