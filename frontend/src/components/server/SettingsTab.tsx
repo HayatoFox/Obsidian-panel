@@ -322,10 +322,10 @@ export default function SettingsTab({ server, onUpdate }: Props) {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || recreating}
             className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
           >
-            {loading ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
+            {loading ? 'Sauvegarde...' : recreating ? 'Recréation...' : 'Sauvegarder les modifications'}
           </button>
         </div>
       </form>
