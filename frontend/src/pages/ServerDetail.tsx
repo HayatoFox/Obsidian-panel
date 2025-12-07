@@ -81,14 +81,15 @@ export default function ServerDetail() {
   useEffect(() => {
     if (server) {
       const socket = getSocket()
-      socket.emit('server:subscribe', server.id)
+      // Subscribe only for stats updates, console handles its own log subscription
+      socket.emit('server:subscribe:stats', server.id)
 
       socket.on('server:stats', ({ stats: serverStats }: { stats: ServerStats }) => {
         setStats(serverStats)
       })
 
       return () => {
-        socket.emit('server:unsubscribe', server.id)
+        socket.emit('server:unsubscribe:stats', server.id)
         socket.off('server:stats')
       }
     }

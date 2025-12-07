@@ -22,6 +22,7 @@ export default function ConsoleTab({ server, visible = true }: Props) {
   const terminalInstance = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
   const initialized = useRef(false)
+  const subscribed = useRef(false)
 
   useEffect(() => {
     // Initialize immediately if DOM is ready
@@ -49,42 +50,55 @@ export default function ConsoleTab({ server, visible = true }: Props) {
     }
   }, [visible])
 
+  // Subscribe to server logs - only once
   useEffect(() => {
-    if (server && terminalInstance.current) {
-      const socket = getSocket()
-      
-      socket.emit('server:subscribe', server.id)
-      terminalInstance.current?.writeln('\x1b[90m[System] Connexion au serveur...\x1b[0m')
-      
-      const handleLog = ({ message }: { message: string }) => {
-        // Don't trim - preserve intentional newlines at start for command responses
-        terminalInstance.current?.writeln(message.trimEnd())
-      }
-      
-      const handleError = (error: { message: string }) => {
-        terminalInstance.current?.writeln(`\x1b[31m[Erreur] ${error.message}\x1b[0m`)
-      }
-
-      socket.on('server:log', handleLog)
-      socket.on('error', handleError)
-      
-      // Listen for connection events
-      socket.on('connect', () => {
-        terminalInstance.current?.writeln('\x1b[32m[System] Connecté au WebSocket\x1b[0m')
-        socket.emit('server:subscribe', server.id)
-      })
-      
-      socket.on('disconnect', () => {
-        terminalInstance.current?.writeln('\x1b[33m[System] Déconnecté du WebSocket\x1b[0m')
-      })
-
-      return () => {
-        socket.emit('server:unsubscribe', server.id)
-        socket.off('server:log', handleLog)
-        socket.off('error', handleError)
-      }
+    if (!server || subscribed.current) return
+    
+    const socket = getSocket()
+    
+    const handleLog = ({ message, serverId }: { message: string; serverId: string }) => {
+      // Only handle logs for this server
+      if (serverId !== server.id) return
+      // Don't trim - preserve intentional newlines at start for command responses
+      terminalInstance.current?.writeln(message.trimEnd())
     }
-  }, [server, terminalInstance.current])
+    
+    const handleError = (error: { message: string }) => {
+      terminalInstance.current?.writeln(`\x1b[31m[Erreur] ${error.message}\x1b[0m`)
+    }
+
+    const handleConnect = () => {
+      terminalInstance.current?.writeln('\x1b[32m[System] Connecté au WebSocket\x1b[0m')
+      // Re-subscribe on reconnect
+      socket.emit('server:subscribe', server.id)
+    }
+    
+    const handleDisconnect = () => {
+      terminalInstance.current?.writeln('\x1b[33m[System] Déconnecté du WebSocket\x1b[0m')
+    }
+
+    // Mark as subscribed before adding listeners
+    subscribed.current = true
+    
+    // Subscribe to server logs
+    socket.emit('server:subscribe', server.id)
+    
+    socket.on('server:log', handleLog)
+    socket.on('error', handleError)
+    socket.on('connect', handleConnect)
+    socket.on('disconnect', handleDisconnect)
+    
+    terminalInstance.current?.writeln('\x1b[90m[System] Connexion au serveur...\x1b[0m')
+
+    return () => {
+      subscribed.current = false
+      socket.emit('server:unsubscribe', server.id)
+      socket.off('server:log', handleLog)
+      socket.off('error', handleError)
+      socket.off('connect', handleConnect)
+      socket.off('disconnect', handleDisconnect)
+    }
+  }, [server?.id])
 
   const initTerminal = () => {
     if (!terminalRef.current) return

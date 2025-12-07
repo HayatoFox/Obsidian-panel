@@ -293,6 +293,36 @@ export function setupWebSocket(io: SocketIOServer) {
       }
     });
 
+    // Subscribe to stats only (no logs)
+    socket.on('server:subscribe:stats', async (serverId: string) => {
+      try {
+        const server = await prisma.server.findUnique({
+          where: { id: serverId }
+        });
+
+        if (!server) {
+          socket.emit('error', { message: 'Server not found' });
+          return;
+        }
+
+        if (socket.role !== 'admin' && server.userId !== socket.userId) {
+          socket.emit('error', { message: 'Access denied' });
+          return;
+        }
+
+        socket.join(`server:${serverId}:stats`);
+        logger.info(`${socket.username} subscribed to stats for server ${serverId}`);
+      } catch (error) {
+        logger.error('Error subscribing to server stats:', error);
+      }
+    });
+
+    // Unsubscribe from stats
+    socket.on('server:unsubscribe:stats', (serverId: string) => {
+      socket.leave(`server:${serverId}:stats`);
+      logger.info(`${socket.username} unsubscribed from stats for server ${serverId}`);
+    });
+
     // Send command to server
     socket.on('server:command', async ({ serverId, command }: { serverId: string; command: string }) => {
       try {
@@ -433,10 +463,13 @@ export function setupWebSocket(io: SocketIOServer) {
         if (server.containerId) {
           try {
             const stats = await dockerService.getContainerStats(server.containerId);
-            io.to(`server:${server.id}`).emit('server:stats', {
+            const statsData = {
               serverId: server.id,
               stats
-            });
+            };
+            // Emit to both rooms: full subscribers and stats-only subscribers
+            io.to(`server:${server.id}`).emit('server:stats', statsData);
+            io.to(`server:${server.id}:stats`).emit('server:stats', statsData);
           } catch (error) {
             // Container might be stopped
           }
