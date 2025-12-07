@@ -479,4 +479,102 @@ router.post('/extract', async (req: AuthRequest, res: Response): Promise<void> =
   }
 });
 
+// Get file permissions - GET /api/files/permissions?serverId=xxx&path=/file.txt
+router.get('/permissions', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const serverId = req.query.serverId as string;
+    const filePath = req.query.path as string;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!filePath) {
+      res.status(400).json({ error: 'Path is required' });
+      return;
+    }
+
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
+    if (!dataPath) {
+      res.status(404).json({ error: 'Server not found or access denied' });
+      return;
+    }
+
+    const permissions = await fileService.getPermissions(dataPath, filePath);
+    res.json(permissions);
+  } catch (error: any) {
+    logger.error('Error getting permissions:', error);
+    res.status(500).json({ error: error.message || 'Failed to get permissions' });
+  }
+});
+
+// Change file permissions - POST /api/files/chmod
+router.post('/chmod', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { serverId, path: filePath, mode, recursive } = req.body;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!filePath) {
+      res.status(400).json({ error: 'Path is required' });
+      return;
+    }
+    
+    if (mode === undefined || mode === null) {
+      res.status(400).json({ error: 'Mode is required (e.g., "755", "644")' });
+      return;
+    }
+
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
+    if (!dataPath) {
+      res.status(404).json({ error: 'Server not found or access denied' });
+      return;
+    }
+
+    await fileService.changePermissions(dataPath, filePath, mode, recursive === true);
+    res.json({ success: true, message: 'Permissions updated successfully' });
+  } catch (error: any) {
+    logger.error('Error changing permissions:', error);
+    res.status(500).json({ error: error.message || 'Failed to change permissions' });
+  }
+});
+
+// Change file owner - POST /api/files/chown
+router.post('/chown', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { serverId, path: filePath, uid, gid, recursive } = req.body;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!filePath) {
+      res.status(400).json({ error: 'Path is required' });
+      return;
+    }
+    
+    if (uid === undefined || gid === undefined) {
+      res.status(400).json({ error: 'uid and gid are required' });
+      return;
+    }
+
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
+    if (!dataPath) {
+      res.status(404).json({ error: 'Server not found or access denied' });
+      return;
+    }
+
+    await fileService.changeOwner(dataPath, filePath, parseInt(uid), parseInt(gid), recursive === true);
+    res.json({ success: true, message: 'Owner changed successfully' });
+  } catch (error: any) {
+    logger.error('Error changing owner:', error);
+    res.status(500).json({ error: error.message || 'Failed to change owner' });
+  }
+});
+
 export default router;

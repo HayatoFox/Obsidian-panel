@@ -562,6 +562,99 @@ class FileService {
 
     return deleted;
   }
+
+  // Get file permissions
+  async getPermissions(basePath: string, filePath: string): Promise<{ mode: number; modeString: string; owner: number; group: number }> {
+    const fullPath = this.sanitizePath(basePath, filePath);
+    const stats = await stat(fullPath);
+    
+    const mode = stats.mode;
+    const modeOctal = (mode & 0o777).toString(8).padStart(3, '0');
+    
+    return {
+      mode: mode & 0o777,
+      modeString: modeOctal,
+      owner: stats.uid,
+      group: stats.gid,
+    };
+  }
+
+  // Change file permissions (chmod)
+  async changePermissions(basePath: string, filePath: string, mode: number | string, recursive: boolean = false): Promise<void> {
+    const fullPath = this.sanitizePath(basePath, filePath);
+    
+    // Convert string mode to number if needed (e.g., "755" -> 0o755)
+    let modeNum: number;
+    if (typeof mode === 'string') {
+      modeNum = parseInt(mode, 8);
+    } else {
+      modeNum = mode;
+    }
+    
+    if (isNaN(modeNum) || modeNum < 0 || modeNum > 0o777) {
+      throw new Error('Invalid permission mode. Use octal value (e.g., 755, 644)');
+    }
+
+    const stats = await stat(fullPath);
+    
+    if (recursive && stats.isDirectory()) {
+      await this.chmodRecursive(fullPath, modeNum);
+    } else {
+      await fs.promises.chmod(fullPath, modeNum);
+    }
+    
+    logger.info(`Changed permissions of ${filePath} to ${modeNum.toString(8)}`);
+  }
+
+  // Recursively change permissions
+  private async chmodRecursive(dirPath: string, mode: number): Promise<void> {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name);
+      
+      if (entry.isDirectory()) {
+        await this.chmodRecursive(entryPath, mode);
+      }
+      
+      await fs.promises.chmod(entryPath, mode);
+    }
+    
+    // Change directory permission too
+    await fs.promises.chmod(dirPath, mode);
+  }
+
+  // Change file owner (chown) - requires root privileges
+  async changeOwner(basePath: string, filePath: string, uid: number, gid: number, recursive: boolean = false): Promise<void> {
+    const fullPath = this.sanitizePath(basePath, filePath);
+    const stats = await stat(fullPath);
+    
+    if (recursive && stats.isDirectory()) {
+      await this.chownRecursive(fullPath, uid, gid);
+    } else {
+      await fs.promises.chown(fullPath, uid, gid);
+    }
+    
+    logger.info(`Changed owner of ${filePath} to ${uid}:${gid}`);
+  }
+
+  // Recursively change owner
+  private async chownRecursive(dirPath: string, uid: number, gid: number): Promise<void> {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name);
+      
+      if (entry.isDirectory()) {
+        await this.chownRecursive(entryPath, uid, gid);
+      }
+      
+      await fs.promises.chown(entryPath, uid, gid);
+    }
+    
+    // Change directory owner too
+    await fs.promises.chown(dirPath, uid, gid);
+  }
 }
 
 export const fileService = FileService.getInstance();

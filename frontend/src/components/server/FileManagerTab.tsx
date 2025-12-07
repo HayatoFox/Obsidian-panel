@@ -19,6 +19,7 @@ import {
   EyeIcon,
   Cog6ToothIcon,
   CloudArrowUpIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import api from '../../lib/api';
@@ -122,6 +123,19 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [showExtractModal, setShowExtractModal] = useState(false);
   const [extractingFile, setExtractingFile] = useState<string>('');
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [permissionsTarget, setPermissionsTarget] = useState<FileItem | null>(null);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [permissionsData, setPermissionsData] = useState<{
+    mode: number;
+    modeString: string;
+    owner: number;
+    group: number;
+  } | null>(null);
+  const [permissionsMode, setPermissionsMode] = useState('644');
+  const [permissionsRecursive, setPermissionsRecursive] = useState(false);
+  const [permissionsOwner, setPermissionsOwner] = useState('0');
+  const [permissionsGroup, setPermissionsGroup] = useState('0');
   const [newFolderName, setNewFolderName] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [renameTarget, setRenameTarget] = useState<FileItem | null>(null);
@@ -627,6 +641,73 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
     }
   };
 
+  // Open permissions modal
+  const openPermissionsModal = async (item: FileItem) => {
+    setPermissionsTarget(item);
+    setPermissionsLoading(true);
+    setShowPermissionsModal(true);
+    setPermissionsRecursive(false);
+    
+    try {
+      const filePath = currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`;
+      const response = await api.get(`/files/permissions?serverId=${serverId}&path=${encodeURIComponent(filePath)}`);
+      setPermissionsData(response.data);
+      setPermissionsMode(response.data.modeString);
+      setPermissionsOwner(String(response.data.owner));
+      setPermissionsGroup(String(response.data.group));
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la récupération des permissions');
+      setShowPermissionsModal(false);
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  // Change file permissions
+  const changePermissions = async () => {
+    if (!permissionsTarget) return;
+    
+    try {
+      const filePath = currentPath === '/' ? `/${permissionsTarget.name}` : `${currentPath}/${permissionsTarget.name}`;
+      await api.post('/files/chmod', {
+        serverId,
+        path: filePath,
+        mode: permissionsMode,
+        recursive: permissionsRecursive,
+      });
+      
+      toast.success('Permissions modifiées avec succès');
+      setShowPermissionsModal(false);
+      setPermissionsTarget(null);
+      setPermissionsData(null);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la modification des permissions');
+    }
+  };
+
+  // Change file owner
+  const changeOwner = async () => {
+    if (!permissionsTarget) return;
+    
+    try {
+      const filePath = currentPath === '/' ? `/${permissionsTarget.name}` : `${currentPath}/${permissionsTarget.name}`;
+      await api.post('/files/chown', {
+        serverId,
+        path: filePath,
+        uid: parseInt(permissionsOwner),
+        gid: parseInt(permissionsGroup),
+        recursive: permissionsRecursive,
+      });
+      
+      toast.success('Propriétaire modifié avec succès');
+      // Refresh permissions data
+      const response = await api.get(`/files/permissions?serverId=${serverId}&path=${encodeURIComponent(filePath)}`);
+      setPermissionsData(response.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la modification du propriétaire');
+    }
+  };
+
   // Open file editor
   const openEditor = async (item: FileItem) => {
     setEditorFile(item);
@@ -821,6 +902,20 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
             <ArchiveBoxIcon className="w-5 h-5 text-purple-400" />
           </button>
         )}
+        
+        <button
+          onClick={() => {
+            if (selectedFiles.size === 1) {
+              const item = files.find(f => f.name === Array.from(selectedFiles)[0]);
+              if (item) openPermissionsModal(item);
+            }
+          }}
+          disabled={selectedFiles.size !== 1}
+          className="p-2 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Permissions"
+        >
+          <ShieldCheckIcon className="w-5 h-5" />
+        </button>
         
         <button
           onClick={deleteSelected}
@@ -1289,6 +1384,197 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
                   spellCheck={false}
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permissions modal */}
+      {showPermissionsModal && permissionsTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-[480px]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheckIcon className="w-6 h-6 text-blue-400" />
+                <h3 className="text-lg font-semibold">Permissions</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPermissionsModal(false);
+                  setPermissionsTarget(null);
+                  setPermissionsData(null);
+                }}
+                className="p-1 rounded hover:bg-gray-700"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4 p-3 bg-gray-900 rounded">
+              <div className="flex items-center gap-2 text-sm">
+                {getFileIcon(permissionsTarget)}
+                <span className="font-medium">{permissionsTarget.name}</span>
+                {permissionsTarget.type === 'directory' && (
+                  <span className="text-xs text-gray-400">(dossier)</span>
+                )}
+              </div>
+            </div>
+
+            {permissionsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <ArrowPathIcon className="w-8 h-8 animate-spin text-gray-500" />
+              </div>
+            ) : (
+              <>
+                {/* Current permissions info */}
+                {permissionsData && (
+                  <div className="mb-4 p-3 bg-gray-700/50 rounded text-sm">
+                    <p className="text-gray-400 mb-1">Permissions actuelles:</p>
+                    <div className="flex items-center gap-4">
+                      <span className="font-mono text-green-400">{permissionsData.modeString}</span>
+                      <span className="text-gray-500">|</span>
+                      <span className="text-gray-300">UID: {permissionsData.owner}</span>
+                      <span className="text-gray-300">GID: {permissionsData.group}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chmod section */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Mode (chmod)
+                  </label>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={permissionsMode}
+                      onChange={(e) => setPermissionsMode(e.target.value.replace(/[^0-7]/g, '').slice(0, 3))}
+                      placeholder="755"
+                      maxLength={3}
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono text-center text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={changePermissions}
+                      className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-sm"
+                    >
+                      Appliquer
+                    </button>
+                  </div>
+                  
+                  {/* Quick presets */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="text-xs text-gray-400 w-full">Préréglages:</span>
+                    {[
+                      { mode: '777', label: '777 (Tous)' },
+                      { mode: '755', label: '755 (Standard)' },
+                      { mode: '644', label: '644 (Lecture)' },
+                      { mode: '600', label: '600 (Privé)' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.mode}
+                        onClick={() => setPermissionsMode(preset.mode)}
+                        className={`px-2 py-1 text-xs rounded ${
+                          permissionsMode === preset.mode
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Permission explanation */}
+                  <div className="text-xs text-gray-500 bg-gray-900/50 p-2 rounded">
+                    <div className="grid grid-cols-3 gap-2 font-mono">
+                      <div>
+                        <span className="text-gray-400">Propriétaire:</span>
+                        <span className="ml-1 text-green-400">{permissionsMode[0] || '0'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Groupe:</span>
+                        <span className="ml-1 text-yellow-400">{permissionsMode[1] || '0'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Autres:</span>
+                        <span className="ml-1 text-red-400">{permissionsMode[2] || '0'}</span>
+                      </div>
+                    </div>
+                    <div className="mt-1 text-gray-600">
+                      4=lecture, 2=écriture, 1=exécution
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chown section */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Propriétaire (chown)
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-1">UID</label>
+                      <input
+                        type="number"
+                        value={permissionsOwner}
+                        onChange={(e) => setPermissionsOwner(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-400 mb-1">GID</label>
+                      <input
+                        type="number"
+                        value={permissionsGroup}
+                        onChange={(e) => setPermissionsGroup(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={changeOwner}
+                        className="px-4 py-2 rounded bg-orange-600 hover:bg-orange-700 text-sm"
+                      >
+                        Appliquer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recursive option */}
+                {permissionsTarget.type === 'directory' && (
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={permissionsRecursive}
+                        onChange={(e) => setPermissionsRecursive(e.target.checked)}
+                        className="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-300">
+                        Appliquer récursivement à tous les fichiers et sous-dossiers
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-700">
+              <button
+                onClick={() => {
+                  setShowPermissionsModal(false);
+                  setPermissionsTarget(null);
+                  setPermissionsData(null);
+                }}
+                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>
