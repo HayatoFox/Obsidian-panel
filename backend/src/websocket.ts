@@ -478,5 +478,5 @@ export function setupWebSocket(io: SocketIOServer) {
     } catch (error) {
       logger.error('Error broadcasting stats:', error);
     }
-  }, 5000);
+  }, 1000);
 }
