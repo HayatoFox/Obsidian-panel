@@ -369,22 +369,40 @@ class FileService {
     };
   }
 
-  // Create temporary archive for directory download
-  async createTempArchiveForDownload(basePath: string, dirPath: string): Promise<{ path: string; filename: string }> {
-    const fullPath = this.sanitizePath(basePath, dirPath);
-    const archiveName = `${path.basename(fullPath)}.zip`;
+  // Create temporary archive for download (supports single path or array of paths)
+  async createTempArchiveForDownload(
+    basePath: string, 
+    paths: string | string[],
+    archiveName?: string,
+    format: 'zip' | 'tar' | 'tar.gz' = 'zip'
+  ): Promise<{ path: string; filename: string }> {
+    const pathsArray = Array.isArray(paths) ? paths : [paths];
     const tempDir = path.join(basePath, '.temp');
     
     await mkdir(tempDir, { recursive: true });
     
-    const archivePath = path.join(tempDir, `${Date.now()}-${archiveName}`);
+    // Determine filename
+    let filename: string;
+    if (archiveName) {
+      filename = archiveName.includes('.') ? archiveName : `${archiveName}.${format === 'tar.gz' ? 'tar.gz' : format}`;
+    } else if (pathsArray.length === 1) {
+      const baseName = path.basename(pathsArray[0]);
+      filename = `${baseName}.${format === 'tar.gz' ? 'tar.gz' : format}`;
+    } else {
+      filename = `archive.${format === 'tar.gz' ? 'tar.gz' : format}`;
+    }
+    
+    const archivePath = path.join(tempDir, `${Date.now()}-${filename}`);
     
     const output = createWriteStream(archivePath);
-    const archive = archiver('zip', { zlib: { level: 6 } });
+    const archive = archiver(format === 'tar.gz' ? 'tar' : format, { 
+      zlib: { level: 6 },
+      gzip: format === 'tar.gz'
+    });
 
     return new Promise((resolve, reject) => {
       output.on('close', () => {
-        resolve({ path: archivePath, filename: archiveName });
+        resolve({ path: archivePath, filename });
       });
 
       archive.on('error', (err) => {
@@ -392,7 +410,18 @@ class FileService {
       });
 
       archive.pipe(output);
-      archive.directory(fullPath, false);
+      
+      for (const p of pathsArray) {
+        const fullPath = this.sanitizePath(basePath, p);
+        const stats = fs.statSync(fullPath);
+        
+        if (stats.isDirectory()) {
+          archive.directory(fullPath, path.basename(p));
+        } else {
+          archive.file(fullPath, { name: path.basename(p) });
+        }
+      }
+      
       archive.finalize();
     });
   }

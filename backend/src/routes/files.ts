@@ -1,13 +1,13 @@
-import { Router, Response, Request } from 'express';
+import { Router, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
-import { AuthRequest, requireOwnerOrAdmin } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { fileService, UploadedFile } from '../services/files';
 import { logger } from '../utils/logger';
 
-const router = Router({ mergeParams: true });
+const router = Router();
 const prisma = new PrismaClient();
 
 // Configure multer for file uploads
@@ -20,7 +20,6 @@ const storage = multer.diskStorage({
     cb(null, tempDir);
   },
   filename: (req, file, cb) => {
-    // Preserve original name with timestamp prefix to avoid conflicts
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, `${uniqueSuffix}-${file.originalname}`);
   }
@@ -30,28 +29,39 @@ const upload = multer({
   storage,
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB max per file
-    files: 100 // Max 100 files at once
+    files: 100
   }
 });
 
-// Helper to get server data path
-async function getServerDataPath(serverId: string): Promise<string | null> {
-  const server = await prisma.server.findUnique({
-    where: { id: serverId },
+// Helper to get server data path and validate ownership
+async function getServerDataPath(serverId: string, userId: string): Promise<string | null> {
+  const server = await prisma.server.findFirst({
+    where: { 
+      id: serverId,
+      OR: [
+        { userId: userId },
+        { user: { role: 'admin' } }
+      ]
+    },
     select: { dataPath: true }
   });
   return server?.dataPath || null;
 }
 
-// List files in directory
-router.get('/', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// List files in directory - GET /api/files/list?serverId=xxx&path=/
+router.get('/list', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
+    const serverId = req.query.serverId as string;
     const requestedPath = (req.query.path as string) || '/';
     
-    const dataPath = await getServerDataPath(serverId);
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
@@ -63,45 +73,25 @@ router.get('/', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): 
   }
 });
 
-// Get file info
-router.get('/info', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Read file content - GET /api/files/read?serverId=xxx&path=/file.txt
+router.get('/read', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
+    const serverId = req.query.serverId as string;
     const filePath = req.query.path as string;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
     
     if (!filePath) {
       res.status(400).json({ error: 'Path is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
-      return;
-    }
-
-    const info = await fileService.getFileInfo(dataPath, filePath);
-    res.json(info);
-  } catch (error: any) {
-    logger.error('Error getting file info:', error);
-    res.status(500).json({ error: error.message || 'Failed to get file info' });
-  }
-});
-
-// Read file content
-router.get('/content', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const serverId = req.params.id;
-    const filePath = req.query.path as string;
-    
-    if (!filePath) {
-      res.status(400).json({ error: 'Path is required' });
-      return;
-    }
-
-    const dataPath = await getServerDataPath(serverId);
-    if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
@@ -113,24 +103,28 @@ router.get('/content', requireOwnerOrAdmin(), async (req: AuthRequest, res: Resp
   }
 });
 
-// Write/save file content
-router.put('/content', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Write/save file content - POST /api/files/write
+router.post('/write', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const { path: filePath, content, encoding } = req.body;
+    const { serverId, path: filePath, content } = req.body;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
     
     if (!filePath) {
       res.status(400).json({ error: 'Path is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
-    await fileService.writeFileContent(dataPath, filePath, content, encoding || 'utf-8');
+    await fileService.writeFileContent(dataPath, filePath, content || '', 'utf-8');
     res.json({ success: true, message: 'File saved successfully' });
   } catch (error: any) {
     logger.error('Error writing file:', error);
@@ -138,45 +132,54 @@ router.put('/content', requireOwnerOrAdmin(), async (req: AuthRequest, res: Resp
   }
 });
 
-// Create directory
-router.post('/directory', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Create folder - POST /api/files/folder
+router.post('/folder', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const { path: dirPath } = req.body;
+    const { serverId, path: folderPath } = req.body;
     
-    if (!dirPath) {
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!folderPath) {
       res.status(400).json({ error: 'Path is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
-    await fileService.createDirectory(dataPath, dirPath);
-    res.json({ success: true, message: 'Directory created successfully' });
+    await fileService.createDirectory(dataPath, folderPath);
+    res.json({ success: true, message: 'Folder created successfully' });
   } catch (error: any) {
-    logger.error('Error creating directory:', error);
-    res.status(500).json({ error: error.message || 'Failed to create directory' });
+    logger.error('Error creating folder:', error);
+    res.status(500).json({ error: error.message || 'Failed to create folder' });
   }
 });
 
-// Delete file or directory
-router.delete('/', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Delete file or folder - DELETE /api/files/delete?serverId=xxx&path=/file.txt
+router.delete('/delete', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
+    const serverId = req.query.serverId as string;
     const targetPath = req.query.path as string;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
     
     if (!targetPath) {
       res.status(400).json({ error: 'Path is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
@@ -188,22 +191,30 @@ router.delete('/', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response
   }
 });
 
-// Rename/move file or directory
-router.post('/rename', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Rename file/folder - POST /api/files/rename
+router.post('/rename', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const { oldPath, newPath } = req.body;
+    const { serverId, oldPath, newName } = req.body;
     
-    if (!oldPath || !newPath) {
-      res.status(400).json({ error: 'Both oldPath and newPath are required' });
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!oldPath || !newName) {
+      res.status(400).json({ error: 'oldPath and newName are required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
+
+    // Construct new path from old path directory + new name
+    const dir = path.dirname(oldPath);
+    const newPath = dir === '/' ? `/${newName}` : `${dir}/${newName}`;
 
     await fileService.rename(dataPath, oldPath, newPath);
     res.json({ success: true, message: 'Renamed successfully' });
@@ -213,24 +224,63 @@ router.post('/rename', requireOwnerOrAdmin(), async (req: AuthRequest, res: Resp
   }
 });
 
-// Copy file or directory
-router.post('/copy', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Move file/folder - POST /api/files/move
+router.post('/move', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const { sourcePath, destPath } = req.body;
+    const { serverId, sourcePath, destinationPath } = req.body;
     
-    if (!sourcePath || !destPath) {
-      res.status(400).json({ error: 'Both sourcePath and destPath are required' });
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!sourcePath || !destinationPath) {
+      res.status(400).json({ error: 'sourcePath and destinationPath are required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
-    await fileService.copy(dataPath, sourcePath, destPath);
+    // Move = rename to new location
+    const fileName = path.basename(sourcePath);
+    const newFullPath = destinationPath.endsWith('/') 
+      ? `${destinationPath}${fileName}` 
+      : `${destinationPath}/${fileName}`;
+
+    await fileService.rename(dataPath, sourcePath, newFullPath);
+    res.json({ success: true, message: 'Moved successfully' });
+  } catch (error: any) {
+    logger.error('Error moving:', error);
+    res.status(500).json({ error: error.message || 'Failed to move' });
+  }
+});
+
+// Copy file/folder - POST /api/files/copy
+router.post('/copy', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { serverId, sourcePath, destinationPath } = req.body;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!sourcePath || !destinationPath) {
+      res.status(400).json({ error: 'sourcePath and destinationPath are required' });
+      return;
+    }
+
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
+    if (!dataPath) {
+      res.status(404).json({ error: 'Server not found or access denied' });
+      return;
+    }
+
+    await fileService.copy(dataPath, sourcePath, destinationPath);
     res.json({ success: true, message: 'Copied successfully' });
   } catch (error: any) {
     logger.error('Error copying:', error);
@@ -238,20 +288,25 @@ router.post('/copy', requireOwnerOrAdmin(), async (req: AuthRequest, res: Respon
   }
 });
 
-// Upload single file
-router.post('/upload', requireOwnerOrAdmin(), upload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
+// Upload file - POST /api/files/upload
+router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
+    const serverId = req.body.serverId;
     const destPath = (req.body.path as string) || '/';
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
     
     if (!req.file) {
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
@@ -274,61 +329,25 @@ router.post('/upload', requireOwnerOrAdmin(), upload.single('file'), async (req:
   }
 });
 
-// Upload multiple files (with directory structure support)
-router.post('/upload-multiple', requireOwnerOrAdmin(), upload.array('files', 100), async (req: AuthRequest, res: Response): Promise<void> => {
+// Download file - GET /api/files/download?serverId=xxx&path=/file.txt
+router.get('/download', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const destPath = (req.body.path as string) || '/';
-    const relativePaths = req.body.relativePaths ? JSON.parse(req.body.relativePaths) : undefined;
-    
-    if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
-      res.status(400).json({ error: 'No files uploaded' });
-      return;
-    }
-
-    const dataPath = await getServerDataPath(serverId);
-    if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
-      return;
-    }
-
-    const files = (req.files as Express.Multer.File[]).map(f => ({
-      fieldname: f.fieldname,
-      originalname: f.originalname,
-      encoding: f.encoding,
-      mimetype: f.mimetype,
-      destination: f.destination,
-      filename: f.filename,
-      path: f.path,
-      size: f.size
-    }));
-
-    const results = await fileService.handleMultipleUpload(dataPath, destPath, files, relativePaths);
-    res.json({ 
-      success: true, 
-      uploaded: results.length,
-      message: `${results.length} files uploaded successfully` 
-    });
-  } catch (error: any) {
-    logger.error('Error uploading files:', error);
-    res.status(500).json({ error: error.message || 'Failed to upload files' });
-  }
-});
-
-// Download file
-router.get('/download', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const serverId = req.params.id;
+    const serverId = req.query.serverId as string;
     const filePath = req.query.path as string;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
     
     if (!filePath) {
       res.status(400).json({ error: 'Path is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
@@ -345,24 +364,39 @@ router.get('/download', requireOwnerOrAdmin(), async (req: AuthRequest, res: Res
   }
 });
 
-// Download directory as archive
-router.get('/download-archive', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Create archive - POST /api/files/archive
+router.post('/archive', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const dirPath = req.query.path as string;
+    const { serverId, paths, archiveName, format, destinationPath } = req.body;
     
-    if (!dirPath) {
-      res.status(400).json({ error: 'Path is required' });
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
+    
+    if (!paths || !Array.isArray(paths) || paths.length === 0) {
+      res.status(400).json({ error: 'paths array is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    if (!archiveName) {
+      res.status(400).json({ error: 'archiveName is required' });
+      return;
+    }
+
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
-    const { path: archivePath, filename } = await fileService.createTempArchiveForDownload(dataPath, dirPath);
+    // Create archive and send as download
+    const { path: archivePath, filename } = await fileService.createTempArchiveForDownload(
+      dataPath, 
+      paths,
+      archiveName,
+      format || 'zip'
+    );
     
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.setHeader('Content-Type', 'application/zip');
@@ -375,113 +409,37 @@ router.get('/download-archive', requireOwnerOrAdmin(), async (req: AuthRequest, 
       fs.unlink(archivePath, () => {});
     });
   } catch (error: any) {
-    logger.error('Error downloading archive:', error);
-    res.status(500).json({ error: error.message || 'Failed to download archive' });
-  }
-});
-
-// Create archive from selected files/directories
-router.post('/archive', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const serverId = req.params.id;
-    const { paths, archiveName, format } = req.body;
-    
-    if (!paths || !Array.isArray(paths) || paths.length === 0) {
-      res.status(400).json({ error: 'Paths array is required' });
-      return;
-    }
-
-    if (!archiveName) {
-      res.status(400).json({ error: 'Archive name is required' });
-      return;
-    }
-
-    const dataPath = await getServerDataPath(serverId);
-    if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
-      return;
-    }
-
-    const archivePath = await fileService.createArchive(dataPath, paths, archiveName, format || 'zip');
-    res.json({ 
-      success: true, 
-      path: archivePath.replace(dataPath, ''),
-      message: 'Archive created successfully' 
-    });
-  } catch (error: any) {
     logger.error('Error creating archive:', error);
     res.status(500).json({ error: error.message || 'Failed to create archive' });
   }
 });
 
-// Extract archive
-router.post('/extract', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+// Extract archive - POST /api/files/extract
+router.post('/extract', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const serverId = req.params.id;
-    const { archivePath, destPath } = req.body;
+    const { serverId, archivePath, destinationPath } = req.body;
+    
+    if (!serverId) {
+      res.status(400).json({ error: 'serverId is required' });
+      return;
+    }
     
     if (!archivePath) {
-      res.status(400).json({ error: 'Archive path is required' });
+      res.status(400).json({ error: 'archivePath is required' });
       return;
     }
 
-    const dataPath = await getServerDataPath(serverId);
+    const dataPath = await getServerDataPath(serverId, req.user!.id);
     if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
+      res.status(404).json({ error: 'Server not found or access denied' });
       return;
     }
 
-    await fileService.extractArchive(dataPath, archivePath, destPath || path.dirname(archivePath));
+    await fileService.extractArchive(dataPath, archivePath, destinationPath || path.dirname(archivePath));
     res.json({ success: true, message: 'Archive extracted successfully' });
   } catch (error: any) {
     logger.error('Error extracting archive:', error);
     res.status(500).json({ error: error.message || 'Failed to extract archive' });
-  }
-});
-
-// Search files
-router.get('/search', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const serverId = req.params.id;
-    const query = req.query.q as string;
-    const searchPath = (req.query.path as string) || '/';
-    
-    if (!query) {
-      res.status(400).json({ error: 'Search query is required' });
-      return;
-    }
-
-    const dataPath = await getServerDataPath(serverId);
-    if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
-      return;
-    }
-
-    const results = await fileService.searchFiles(dataPath, searchPath, query);
-    res.json({ results });
-  } catch (error: any) {
-    logger.error('Error searching files:', error);
-    res.status(500).json({ error: error.message || 'Failed to search files' });
-  }
-});
-
-// Get disk usage
-router.get('/usage', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const serverId = req.params.id;
-    const targetPath = (req.query.path as string) || '/';
-    
-    const dataPath = await getServerDataPath(serverId);
-    if (!dataPath) {
-      res.status(404).json({ error: 'Server not found' });
-      return;
-    }
-
-    const usage = await fileService.getDiskUsage(dataPath, targetPath);
-    res.json(usage);
-  } catch (error: any) {
-    logger.error('Error getting disk usage:', error);
-    res.status(500).json({ error: error.message || 'Failed to get disk usage' });
   }
 });
 
