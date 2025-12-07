@@ -167,12 +167,17 @@ export default function SettingsTab({ server, onUpdate }: Props) {
 
   const handleRecreateContainer = async () => {
     setRecreating(true)
+    console.log('[RECREATE] Starting container recreation...')
     try {
-      await api.post(`/servers/${server.id}/recreate`)
+      const response = await api.post(`/servers/${server.id}/recreate`, {}, {
+        timeout: 120000 // 2 minutes timeout
+      })
+      console.log('[RECREATE] Response:', response.data)
       toast.success('Conteneur recréé avec succès. Vous pouvez maintenant démarrer le serveur.')
       onUpdate()
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erreur lors de la recréation du conteneur')
+      console.error('[RECREATE] Error:', error)
+      toast.error(error.response?.data?.error || error.message || 'Erreur lors de la recréation du conteneur')
     } finally {
       setRecreating(false)
     }

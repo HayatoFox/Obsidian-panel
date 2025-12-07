@@ -158,12 +158,15 @@ router.post('/:id/restart', requireOwnerOrAdmin(), async (req: AuthRequest, res:
 
 // Recreate container (for configuration changes like Java version)
 router.post('/:id/recreate', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  console.log(`[RECREATE] Starting recreation for server ${req.params.id}`);
   try {
     await serverService.recreateContainer(req.params.id);
+    console.log(`[RECREATE] Recreation completed for server ${req.params.id}`);
     const server = await prisma.server.findUnique({ where: { id: req.params.id } });
+    console.log(`[RECREATE] Server status after recreation: ${server?.status}`);
     res.json({ message: 'Container recreated successfully', server });
   } catch (error: any) {
-    console.error('Error recreating container:', error);
+    console.error('[RECREATE] Error recreating container:', error);
     res.status(500).json({ error: error.message || 'Failed to recreate container' });
   }
 });
