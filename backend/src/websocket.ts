@@ -261,8 +261,30 @@ export function setupWebSocket(io: SocketIOServer) {
         }
 
         // Execute command based on game type
+        let output = '';
         if (server.gameType.includes('minecraft')) {
-          await dockerService.execCommand(server.containerId, ['rcon-cli', command]);
+          try {
+            output = await dockerService.execCommand(server.containerId, ['rcon-cli', command]);
+            
+            // Send the command output back to the client
+            if (output && output.trim()) {
+              const lines = output.split('\n').filter(line => line.trim());
+              for (const line of lines) {
+                io.to(`server:${serverId}`).emit('server:log', {
+                  serverId,
+                  message: `§a${line.trim()}`,
+                  timestamp: new Date().toISOString()
+                });
+              }
+            }
+          } catch (cmdError: any) {
+            logger.error('RCON command error:', cmdError);
+            io.to(`server:${serverId}`).emit('server:log', {
+              serverId,
+              message: `§c[Error] ${cmdError.message || 'Failed to execute command'}`,
+              timestamp: new Date().toISOString()
+            });
+          }
         } else {
           // For other games, try to write to stdin
           const container = dockerService.getContainer(server.containerId);

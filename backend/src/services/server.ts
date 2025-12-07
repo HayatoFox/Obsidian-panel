@@ -155,6 +155,11 @@ export class ServerService {
       env['SPAWN_ANIMALS'] = String(gameConfig.spawnAnimals !== false);
       env['SPAWN_MONSTERS'] = String(gameConfig.spawnMonsters !== false);
       env['SPAWN_NPCS'] = String(gameConfig.spawnNpcs !== false);
+      
+      // RCON configuration for remote commands
+      env['ENABLE_RCON'] = 'true';
+      env['RCON_PASSWORD'] = 'obsidian';
+      env['RCON_PORT'] = '25575';
     }
 
     // SteamCMD games
