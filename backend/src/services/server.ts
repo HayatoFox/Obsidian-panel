@@ -140,6 +140,11 @@ export class ServerService {
     env['EULA'] = 'TRUE';
     env['SERVER_PORT'] = String(options.port);
     
+    // Run as root (UID 0) to avoid permission issues with uploaded files
+    // The container will handle permissions internally
+    env['UID'] = '0';
+    env['GID'] = '0';
+    
     if (options.memoryLimit) {
       env['MEMORY'] = `${options.memoryLimit}M`;
       env['MAX_MEMORY'] = `${options.memoryLimit}M`;
