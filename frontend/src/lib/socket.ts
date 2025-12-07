@@ -7,13 +7,22 @@ export function getSocket(): Socket {
   if (!socket) {
     const token = useAuthStore.getState().token
     
-    // Determine the API URL - use current origin if not specified
-    const apiUrl = import.meta.env.VITE_API_URL || window.location.origin
+    // Get the API URL and extract the base (remove /api suffix if present)
+    const rawUrl = import.meta.env.VITE_API_URL || ''
+    let baseUrl: string
     
-    console.log('Creating socket connection to:', apiUrl)
+    if (rawUrl) {
+      // Remove /api or /api/ suffix to get the base URL for Socket.IO
+      baseUrl = rawUrl.replace(/\/api\/?$/, '')
+    } else {
+      // If no URL configured, use current origin
+      baseUrl = window.location.origin
+    }
+    
+    console.log('Creating socket connection to:', baseUrl)
     console.log('Token available:', !!token)
     
-    socket = io(apiUrl, {
+    socket = io(baseUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
       autoConnect: true,
