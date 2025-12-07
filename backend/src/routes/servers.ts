@@ -154,8 +154,12 @@ router.post('/:id/restart', requireOwnerOrAdmin(), async (req: AuthRequest, res:
 // Kill server (force stop)
 router.post('/:id/kill', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    console.log(`Killing server ${req.params.id}`);
     await serverService.killServer(req.params.id);
-    res.json({ message: 'Server killed' });
+    // Return updated server
+    const server = await prisma.server.findUnique({ where: { id: req.params.id } });
+    console.log(`Server ${req.params.id} after kill:`, server?.status);
+    res.json({ message: 'Server killed', server });
   } catch (error: any) {
     console.error('Error killing server:', error);
     res.status(500).json({ error: error.message || 'Failed to kill server' });
@@ -165,11 +169,34 @@ router.post('/:id/kill', requireOwnerOrAdmin(), async (req: AuthRequest, res: Re
 // Sync server status with Docker
 router.post('/:id/sync', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    console.log(`Syncing server ${req.params.id}`);
     const status = await serverService.syncServerStatus(req.params.id);
-    res.json({ message: 'Status synced', status });
+    // Return updated server
+    const server = await prisma.server.findUnique({ where: { id: req.params.id } });
+    console.log(`Server ${req.params.id} after sync:`, server?.status);
+    res.json({ message: 'Status synced', status, server });
   } catch (error: any) {
     console.error('Error syncing server status:', error);
     res.status(500).json({ error: error.message || 'Failed to sync status' });
+  }
+});
+
+// Force reset server status (emergency)
+router.post('/:id/reset-status', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['stopped', 'running', 'starting', 'stopping', 'error'];
+    const newStatus = validStatuses.includes(status) ? status : 'stopped';
+    
+    console.log(`Force resetting server ${req.params.id} status to ${newStatus}`);
+    const server = await prisma.server.update({
+      where: { id: req.params.id },
+      data: { status: newStatus }
+    });
+    res.json({ message: 'Status reset', server });
+  } catch (error: any) {
+    console.error('Error resetting server status:', error);
+    res.status(500).json({ error: error.message || 'Failed to reset status' });
   }
 });
 
@@ -267,5 +294,107 @@ router.patch(
     }
   }
 );
+
+// ============================================================================
+// File Management Routes
+// ============================================================================
+
+// Get files in server directory
+router.get('/:id/files', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const server = await prisma.server.findUnique({ where: { id: req.params.id } });
+    if (!server) {
+      res.status(404).json({ error: 'Server not found' });
+      return;
+    }
+
+    const requestedPath = (req.query.path as string) || '/';
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    // Sanitize path to prevent directory traversal
+    const safePath = path.normalize(requestedPath).replace(/^(\.\.[\/\\])+/, '');
+    const fullPath = path.join(server.dataPath, safePath);
+    
+    // Ensure we're still within the server's data directory
+    if (!fullPath.startsWith(server.dataPath)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    if (!fs.existsSync(fullPath)) {
+      res.json({ files: [], path: requestedPath });
+      return;
+    }
+
+    const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+    const files = entries.map(entry => ({
+      name: entry.name,
+      type: entry.isDirectory() ? 'directory' : 'file',
+      size: entry.isFile() ? fs.statSync(path.join(fullPath, entry.name)).size : 0,
+      modified: fs.statSync(path.join(fullPath, entry.name)).mtime.toISOString()
+    }));
+
+    // Sort: directories first, then files
+    files.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    res.json({ files, path: requestedPath });
+  } catch (error: any) {
+    console.error('Error listing files:', error);
+    res.status(500).json({ error: error.message || 'Failed to list files' });
+  }
+});
+
+// ============================================================================
+// Placeholder Routes (return empty data for now)
+// ============================================================================
+
+// Get players (placeholder)
+router.get('/:id/players', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.json({ players: [] });
+});
+
+// Get backups (placeholder)
+router.get('/:id/backups', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.json({ backups: [] });
+});
+
+// Create backup (placeholder)
+router.post('/:id/backups', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.status(501).json({ error: 'Backup feature not yet implemented' });
+});
+
+// Restore backup (placeholder)
+router.post('/:id/backups/:backupId/restore', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.status(501).json({ error: 'Backup restore not yet implemented' });
+});
+
+// Get schedules (placeholder)
+router.get('/:id/schedules', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.json({ schedules: [] });
+});
+
+// Create schedule (placeholder)
+router.post('/:id/schedules', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.status(501).json({ error: 'Schedules not yet implemented' });
+});
+
+// Update schedule (placeholder)
+router.patch('/:id/schedules/:scheduleId', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.status(501).json({ error: 'Schedules not yet implemented' });
+});
+
+// Delete schedule (placeholder)
+router.delete('/:id/schedules/:scheduleId', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.status(501).json({ error: 'Schedules not yet implemented' });
+});
+
+// Get activity logs (placeholder)
+router.get('/:id/activity', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  res.json({ logs: [] });
+});
 
 export { router as serverRouter };

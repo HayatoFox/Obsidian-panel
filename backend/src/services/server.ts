@@ -209,20 +209,27 @@ export class ServerService {
 
   async killServer(serverId: string): Promise<void> {
     const server = await prisma.server.findUnique({ where: { id: serverId } });
-    if (!server || !server.containerId) {
+    if (!server) {
       throw new Error('Server not found');
     }
 
-    try {
-      await this.dockerService.killContainer(server.containerId);
-    } catch (e) {
-      // Container might already be stopped
+    // Try to kill container if it exists
+    if (server.containerId) {
+      try {
+        await this.dockerService.killContainer(server.containerId);
+      } catch (e) {
+        // Container might already be stopped or doesn't exist
+        console.log(`Kill container failed for ${server.containerId}:`, e);
+      }
     }
 
+    // Always force status to stopped regardless of Docker state
     await prisma.server.update({
       where: { id: serverId },
       data: { status: 'stopped' }
     });
+    
+    console.log(`Server ${serverId} status forced to stopped`);
   }
 
   async deleteServer(serverId: string): Promise<void> {
@@ -286,18 +293,31 @@ export class ServerService {
 
   async syncServerStatus(serverId: string): Promise<string> {
     const server = await prisma.server.findUnique({ where: { id: serverId } });
-    if (!server || !server.containerId) {
+    if (!server) {
       return 'unknown';
     }
 
-    const dockerStatus = await this.dockerService.getContainerStatus(server.containerId);
-    const panelStatus = this.mapDockerStatus(dockerStatus);
+    let panelStatus = 'stopped'; // Default to stopped
 
+    if (server.containerId) {
+      const dockerStatus = await this.dockerService.getContainerStatus(server.containerId);
+      console.log(`Docker status for ${server.containerId}: ${dockerStatus}`);
+      
+      // If container doesn't exist or is unknown, default to stopped
+      if (dockerStatus === 'unknown') {
+        panelStatus = 'stopped';
+      } else {
+        panelStatus = this.mapDockerStatus(dockerStatus);
+      }
+    }
+
+    // Always update status in DB
     if (server.status !== panelStatus) {
       await prisma.server.update({
         where: { id: serverId },
         data: { status: panelStatus }
       });
+      console.log(`Server ${serverId} status synced: ${server.status} -> ${panelStatus}`);
     }
 
     return panelStatus;
