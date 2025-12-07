@@ -155,7 +155,18 @@ export function setupWebSocket(io: SocketIOServer) {
                 logsText = String(existingLogs);
               }
               
-              const lines = logsText.split('\n').filter(line => line.trim());
+              const lines = logsText.split('\n').filter(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return false;
+                
+                // Filter out noisy RCON connection logs
+                if (trimmed.includes('RCON Listener') && trimmed.includes('started')) return false;
+                if (trimmed.includes('RCON Client') && trimmed.includes('shutting down')) return false;
+                if (trimmed.includes('Thread RCON Client')) return false;
+                
+                return true;
+              });
+              
               for (const line of lines) {
                 socket.emit('server:log', {
                   serverId,
@@ -186,7 +197,18 @@ export function setupWebSocket(io: SocketIOServer) {
                 }
                 
                 if (message && message.trim()) {
-                  const lines = message.split('\n').filter(line => line.trim());
+                  const lines = message.split('\n').filter(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return false;
+                    
+                    // Filter out noisy RCON connection logs
+                    if (trimmed.includes('RCON Listener') && trimmed.includes('started')) return false;
+                    if (trimmed.includes('RCON Client') && trimmed.includes('shutting down')) return false;
+                    if (trimmed.includes('Thread RCON Client')) return false;
+                    
+                    return true;
+                  });
+                  
                   for (const line of lines) {
                     io.to(`server:${serverId}`).emit('server:log', {
                       serverId,
