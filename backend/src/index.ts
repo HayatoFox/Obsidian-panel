@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth';
 import { serverRouter } from './routes/servers';
 import { gameTemplateRouter } from './routes/gameTemplates';
 import { userRouter } from './routes/users';
+import filesRouter from './routes/files';
 import { setupWebSocket } from './websocket';
 import { authenticateToken } from './middleware/auth';
 import { DockerService } from './services/docker';
@@ -17,9 +18,21 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+// CORS origins configuration
+const corsOrigins = [
+  process.env.FRONTEND_URL || 'http://31.39.12.93:5173',
+  'https://hayslab.xyz',
+  'http://hayslab.xyz',
+  'https://www.hayslab.xyz',
+  'http://www.hayslab.xyz',
+  'https://panel.hayslab.xyz',
+  'http://panel.hayslab.xyz',
+];
+
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://31.39.12.93:5173',
+    origin: corsOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -27,7 +40,7 @@ const io = new SocketIOServer(httpServer, {
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://31.39.12.93:5173',
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(express.json());
@@ -40,6 +53,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/servers', authenticateToken, serverRouter);
+app.use('/api/servers/:id/files', authenticateToken, filesRouter);
 app.use('/api/game-templates', authenticateToken, gameTemplateRouter);
 app.use('/api/users', authenticateToken, userRouter);
 
