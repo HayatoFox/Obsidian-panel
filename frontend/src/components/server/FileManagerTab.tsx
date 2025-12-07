@@ -325,7 +325,7 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
         formData.append('path', currentPath);
 
         await api.post('/files/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 600000, // 10 minutes timeout for large files
           onUploadProgress: (progressEvent: AxiosProgressEvent) => {
             if (progressEvent.total) {
               progress[file.name] = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -391,7 +391,7 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
         formData.append('path', uploadPath);
 
         await api.post('/files/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 600000, // 10 minutes timeout for large files
           onUploadProgress: (progressEvent: AxiosProgressEvent) => {
             if (progressEvent.total) {
               progress[`${item.path}/${fileName}`] = Math.round((progressEvent.loaded * 100) / progressEvent.total);

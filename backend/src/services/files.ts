@@ -5,6 +5,7 @@ import { pipeline } from 'stream/promises';
 import { createReadStream, createWriteStream } from 'fs';
 import archiver from 'archiver';
 import extract from 'extract-zip';
+import tar from 'tar';
 import { logger } from '../utils/logger';
 
 const stat = promisify(fs.stat);
@@ -249,14 +250,33 @@ class FileService {
 
   // Handle file upload (move from temp to destination)
   async handleUpload(basePath: string, destPath: string, uploadedFile: UploadedFile): Promise<string> {
-    const destFullPath = this.sanitizePath(basePath, path.join(destPath, uploadedFile.originalname));
+    // Handle encoding issues with filename
+    let fileName = uploadedFile.originalname;
+    try {
+      // Try to decode if it's latin1 encoded UTF-8
+      fileName = Buffer.from(uploadedFile.originalname, 'latin1').toString('utf8');
+    } catch {
+      // Keep original if decoding fails
+    }
+    
+    const destFullPath = this.sanitizePath(basePath, path.join(destPath, fileName));
     
     // Ensure parent directory exists
     const dir = path.dirname(destFullPath);
     await mkdir(dir, { recursive: true });
     
     // Move file from temp location
-    await rename(uploadedFile.path, destFullPath);
+    try {
+      await rename(uploadedFile.path, destFullPath);
+    } catch (renameError: any) {
+      // If rename fails (cross-device), try copy + delete
+      if (renameError.code === 'EXDEV') {
+        await copyFile(uploadedFile.path, destFullPath);
+        await unlink(uploadedFile.path);
+      } else {
+        throw renameError;
+      }
+    }
     
     logger.info(`File uploaded: ${destFullPath}`);
     return destFullPath;
@@ -339,11 +359,17 @@ class FileService {
     
     // Determine archive type by extension
     const ext = path.extname(fullArchivePath).toLowerCase();
+    const basename = path.basename(fullArchivePath).toLowerCase();
     
     if (ext === '.zip') {
       await extract(fullArchivePath, { dir: fullDestPath });
+    } else if (ext === '.tar' || ext === '.tgz' || basename.endsWith('.tar.gz')) {
+      await tar.extract({
+        file: fullArchivePath,
+        cwd: fullDestPath,
+      });
     } else {
-      throw new Error('Unsupported archive format. Only .zip is supported.');
+      throw new Error('Unsupported archive format. Supported: .zip, .tar, .tar.gz, .tgz');
     }
 
     logger.info(`Archive extracted: ${fullArchivePath} -> ${fullDestPath}`);

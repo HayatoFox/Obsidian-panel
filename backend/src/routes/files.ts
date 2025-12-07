@@ -1,5 +1,5 @@
-import { Router, Response } from 'express';
-import multer from 'multer';
+import { Router, Response, NextFunction } from 'express';
+import multer, { MulterError } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
@@ -20,18 +20,39 @@ const storage = multer.diskStorage({
     cb(null, tempDir);
   },
   filename: (req, file, cb) => {
+    // Handle special characters in filenames
+    const safeName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    cb(null, `${uniqueSuffix}-${safeName}`);
   }
 });
 
 const upload = multer({
   storage,
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB max per file
-    files: 100
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB max per file
+    files: 100,
+    fieldSize: 50 * 1024 * 1024 // 50MB for field values
   }
 });
+
+// Multer error handling middleware
+const handleMulterError = (err: any, req: AuthRequest, res: Response, next: NextFunction) => {
+  if (err instanceof MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ error: 'File too large. Maximum size is 5GB.' });
+      return;
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      res.status(413).json({ error: 'Too many files. Maximum is 100 files.' });
+      return;
+    }
+    logger.error('Multer error:', err);
+    res.status(400).json({ error: `Upload error: ${err.message}` });
+    return;
+  }
+  next(err);
+};
 
 // Helper to get server data path and validate ownership
 async function getServerDataPath(serverId: string, userId: string): Promise<string | null> {
@@ -289,7 +310,7 @@ router.post('/copy', async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // Upload file - POST /api/files/upload
-router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/upload', upload.single('file'), handleMulterError, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const serverId = req.body.serverId;
     const destPath = (req.body.path as string) || '/';
