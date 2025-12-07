@@ -16,23 +16,47 @@ interface Server {
   gameConfig: string
 }
 
+// Parse gameConfig to get javaVersion
+const parseGameConfig = (gameConfig: string) => {
+  try {
+    return JSON.parse(gameConfig)
+  } catch {
+    return {}
+  }
+}
+
 interface Props {
   server: Server
   onUpdate: () => void
 }
 
+// Java versions available for Minecraft
+const JAVA_VERSIONS = [
+  { value: '8', label: 'Java 8 (1.8 - 1.16)' },
+  { value: '11', label: 'Java 11 (1.12 - 1.16)' },
+  { value: '16', label: 'Java 16 (1.16 - 1.17)' },
+  { value: '17', label: 'Java 17 (1.17 - 1.20)' },
+  { value: '18', label: 'Java 18 (1.18+)' },
+  { value: '21', label: 'Java 21 LTS (1.20.5+)' },
+  { value: '25', label: 'Java 25 (Dernière)' },
+]
+
 export default function SettingsTab({ server, onUpdate }: Props) {
+  const gameConfig = parseGameConfig(server.gameConfig)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: server.name,
     memoryLimit: server.memoryLimit,
     cpuLimit: server.cpuLimit,
-    maxPlayers: 20,
-    motd: 'An Obsidian Panel Server',
-    pvp: true,
-    difficulty: 'normal',
-    gamemode: 'survival',
+    maxPlayers: gameConfig.maxPlayers || 20,
+    motd: gameConfig.motd || 'An Obsidian Panel Server',
+    pvp: gameConfig.pvp !== false,
+    difficulty: gameConfig.difficulty || 'normal',
+    gamemode: gameConfig.gamemode || 'survival',
+    javaVersion: gameConfig.javaVersion || '17',
   })
+  const [recreating, setRecreating] = useState(false)
+  const originalJavaVersion = gameConfig.javaVersion || '17'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,14 +73,55 @@ export default function SettingsTab({ server, onUpdate }: Props) {
           pvp: formData.pvp,
           difficulty: formData.difficulty,
           gamemode: formData.gamemode,
+          javaVersion: formData.javaVersion,
         }
       })
       toast.success('Paramètres sauvegardés')
+      
+      // If Java version changed, offer to recreate container
+      if (formData.javaVersion !== originalJavaVersion && server.gameType.includes('minecraft')) {
+        toast((t) => (
+          <div className="flex flex-col gap-2">
+            <span>La version Java a changé. Recréer le conteneur pour appliquer ?</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id)
+                  handleRecreateContainer()
+                }}
+                className="px-3 py-1 bg-purple-600 text-white rounded text-sm"
+              >
+                Recréer
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="px-3 py-1 bg-gray-600 text-white rounded text-sm"
+              >
+                Plus tard
+              </button>
+            </div>
+          </div>
+        ), { duration: 10000 })
+      }
+      
       onUpdate()
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erreur lors de la sauvegarde')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRecreateContainer = async () => {
+    setRecreating(true)
+    try {
+      await api.post(`/servers/${server.id}/recreate`)
+      toast.success('Conteneur recréé avec succès. Vous pouvez maintenant démarrer le serveur.')
+      onUpdate()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la recréation du conteneur')
+    } finally {
+      setRecreating(false)
     }
   }
 
@@ -214,6 +279,26 @@ export default function SettingsTab({ server, onUpdate }: Props) {
                     <option value="adventure">Aventure</option>
                     <option value="spectator">Spectateur</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Version Java
+                  </label>
+                  <select
+                    value={formData.javaVersion}
+                    onChange={(e) => setFormData({ ...formData, javaVersion: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    {JAVA_VERSIONS.map((java) => (
+                      <option key={java.value} value={java.value}>
+                        {java.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Sélectionnez la version Java compatible avec votre version Minecraft
+                  </p>
                 </div>
 
                 <div className="flex items-center">

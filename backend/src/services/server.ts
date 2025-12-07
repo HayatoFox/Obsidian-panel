@@ -156,6 +156,12 @@ export class ServerService {
       env['SPAWN_MONSTERS'] = String(gameConfig.spawnMonsters !== false);
       env['SPAWN_NPCS'] = String(gameConfig.spawnNpcs !== false);
       
+      // Java version selection (uses itzg/minecraft-server JAVA_VERSION env var)
+      // Supported values: 8, 11, 16, 17, 18, 19, 20, 21
+      if (gameConfig.javaVersion) {
+        env['JAVA_VERSION'] = gameConfig.javaVersion;
+      }
+      
       // RCON configuration for remote commands
       env['ENABLE_RCON'] = 'true';
       env['RCON_PASSWORD'] = 'obsidian';
@@ -365,6 +371,99 @@ export class ServerService {
         return 'stopped';
       default:
         return 'unknown';
+    }
+  }
+
+  // Recreate container with updated configuration (needed for Java version changes, etc.)
+  async recreateContainer(serverId: string): Promise<void> {
+    const server = await prisma.server.findUnique({ where: { id: serverId } });
+    if (!server) {
+      throw new Error('Server not found');
+    }
+
+    const template = await prisma.gameTemplate.findUnique({
+      where: { name: server.gameType }
+    });
+
+    if (!template) {
+      throw new Error(`Game template '${server.gameType}' not found`);
+    }
+
+    await prisma.server.update({
+      where: { id: serverId },
+      data: { status: 'installing' }
+    });
+
+    try {
+      // Stop and remove old container
+      if (server.containerId) {
+        try {
+          await this.dockerService.stopContainer(server.containerId);
+        } catch (e) {
+          // Container might already be stopped
+        }
+        try {
+          await this.dockerService.removeContainer(server.containerId, true);
+        } catch (e) {
+          // Container might already be removed
+        }
+      }
+
+      // Parse game config
+      const gameConfig = JSON.parse(server.gameConfig || '{}');
+      
+      // Build environment variables
+      const envTemplate = JSON.parse(template.envTemplate);
+      const env: Record<string, string> = {
+        ...envTemplate,
+        ...this.buildEnvFromConfig(template, gameConfig, {
+          name: server.name,
+          gameType: server.gameType,
+          userId: server.userId,
+          port: server.port,
+          memoryLimit: server.memoryLimit,
+          cpuLimit: server.cpuLimit,
+          gameConfig
+        })
+      };
+
+      // Create new container config
+      const containerConfig: ContainerConfig = {
+        name: server.containerName,
+        image: template.dockerImage,
+        ports: [
+          { container: template.defaultPort, host: server.port },
+          ...(server.queryPort ? [{ container: template.defaultQueryPort!, host: server.queryPort }] : []),
+          ...(server.rconPort ? [{ container: template.defaultRconPort!, host: server.rconPort }] : [])
+        ],
+        env,
+        volumes: [
+          { host: server.dataPath, container: '/data' }
+        ],
+        memory: server.memoryLimit,
+        cpus: server.cpuLimit,
+        restart: 'unless-stopped'
+      };
+
+      // Create new container
+      const container = await this.dockerService.createContainer(containerConfig);
+
+      // Update database with new container ID
+      await prisma.server.update({
+        where: { id: serverId },
+        data: { 
+          containerId: container.id,
+          status: 'stopped'
+        }
+      });
+
+      logger.info(`Server ${server.name} container recreated successfully`);
+    } catch (error) {
+      await prisma.server.update({
+        where: { id: serverId },
+        data: { status: 'error' }
+      });
+      throw error;
     }
   }
 }
