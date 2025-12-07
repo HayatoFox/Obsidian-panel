@@ -166,6 +166,16 @@ export class ServerService {
         env['JAVA_VERSION'] = gameConfig.javaVersion;
       }
       
+      // JVM arguments (additional flags beyond -Xms/-Xmx)
+      if (gameConfig.jvmArgs && gameConfig.jvmArgs.trim()) {
+        env['JVM_OPTS'] = gameConfig.jvmArgs.trim();
+      }
+      
+      // Custom startup command (overrides default)
+      if (gameConfig.startupCommand && gameConfig.startupCommand.trim()) {
+        env['CUSTOM_SERVER_JAR'] = gameConfig.startupCommand.trim();
+      }
+      
       // RCON configuration for remote commands
       env['ENABLE_RCON'] = 'true';
       env['RCON_PASSWORD'] = 'obsidian';

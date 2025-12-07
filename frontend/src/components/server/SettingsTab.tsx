@@ -54,6 +54,8 @@ export default function SettingsTab({ server, onUpdate }: Props) {
     difficulty: gameConfig.difficulty || 'normal',
     gamemode: gameConfig.gamemode || 'survival',
     javaVersion: gameConfig.javaVersion || '17',
+    jvmArgs: gameConfig.jvmArgs || '',
+    startupCommand: gameConfig.startupCommand || '',
   })
   const [recreating, setRecreating] = useState(false)
   const originalJavaVersion = gameConfig.javaVersion || '17'
@@ -74,6 +76,8 @@ export default function SettingsTab({ server, onUpdate }: Props) {
           difficulty: formData.difficulty,
           gamemode: formData.gamemode,
           javaVersion: formData.javaVersion,
+          jvmArgs: formData.jvmArgs,
+          startupCommand: formData.startupCommand,
         }
       })
       toast.success('Paramètres sauvegardés')
@@ -317,6 +321,61 @@ export default function SettingsTab({ server, onUpdate }: Props) {
             )}
           </div>
         </div>
+
+        {/* Startup & JVM Settings - Only for Minecraft */}
+        {server.gameType.includes('minecraft') && (
+          <div className="bg-dark-800 rounded-xl p-6 border border-dark-700 mb-6">
+            <h3 className="text-lg font-semibold text-white mb-6">
+              Configuration de démarrage & JVM
+            </h3>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Arguments JVM
+                </label>
+                <textarea
+                  value={formData.jvmArgs}
+                  onChange={(e) => setFormData({ ...formData, jvmArgs: e.target.value })}
+                  placeholder="-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
+                  rows={3}
+                  className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Arguments JVM supplémentaires (sans -Xms/-Xmx, gérés automatiquement). Ex: -XX:+UseG1GC
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Commande de démarrage personnalisée
+                </label>
+                <textarea
+                  value={formData.startupCommand}
+                  onChange={(e) => setFormData({ ...formData, startupCommand: e.target.value })}
+                  placeholder="Laisser vide pour utiliser la commande par défaut"
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Remplace la commande de démarrage par défaut. Laisser vide pour utiliser les paramètres standards.
+                </p>
+              </div>
+
+              <div className="bg-dark-700/50 rounded-lg p-4 border border-dark-600">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Exemples d'arguments JVM courants :</h4>
+                <ul className="text-xs text-gray-400 space-y-1">
+                  <li><code className="text-purple-400">-XX:+UseG1GC</code> - Utilise le garbage collector G1 (recommandé)</li>
+                  <li><code className="text-purple-400">-XX:+ParallelRefProcEnabled</code> - Active le traitement parallèle des références</li>
+                  <li><code className="text-purple-400">-XX:MaxGCPauseMillis=200</code> - Limite les pauses GC à 200ms</li>
+                  <li><code className="text-purple-400">-XX:+UnlockExperimentalVMOptions</code> - Débloque les options expérimentales</li>
+                  <li><code className="text-purple-400">-XX:+DisableExplicitGC</code> - Désactive les appels System.gc() explicites</li>
+                  <li><code className="text-purple-400">-Daikars.new.flags=true</code> - Utilise les flags Aikar optimisés</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Save Button */}
         <div className="flex justify-end">
