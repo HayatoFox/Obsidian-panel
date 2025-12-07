@@ -13,49 +13,56 @@ interface Server {
 
 interface Props {
   server: Server
+  visible?: boolean
 }
 
-export default function ConsoleTab({ server }: Props) {
+export default function ConsoleTab({ server, visible = true }: Props) {
   const [command, setCommand] = useState('')
   const terminalRef = useRef<HTMLDivElement>(null)
   const terminalInstance = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
+  const initialized = useRef(false)
+  const socketConnected = useRef(false)
 
   useEffect(() => {
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(() => {
-      if (terminalRef.current && !terminalInstance.current) {
-        initTerminal()
-      }
-    }, 100)
+    // Initialize immediately if DOM is ready
+    if (terminalRef.current && !initialized.current) {
+      initialized.current = true
+      initTerminal()
+    }
 
     return () => {
-      clearTimeout(timer)
       if (terminalInstance.current) {
         terminalInstance.current.dispose()
         terminalInstance.current = null
+        initialized.current = false
       }
     }
   }, [])
+
+  // Refit terminal when becoming visible (was hidden with display:none)
+  useEffect(() => {
+    if (visible && fitAddon.current && terminalInstance.current) {
+      // Small delay to ensure the DOM has updated
+      requestAnimationFrame(() => {
+        fitAddon.current?.fit()
+      })
+    }
+  }, [visible])
 
   useEffect(() => {
     if (server && terminalInstance.current) {
       const socket = getSocket()
       
-      // Debug: Log socket connection status
-      console.log('Socket connected:', socket.connected)
-      
       socket.emit('server:subscribe', server.id)
       terminalInstance.current?.writeln('\x1b[90m[System] Connexion au serveur...\x1b[0m')
       
       const handleLog = ({ message }: { message: string }) => {
-        console.log('Received log:', message) // Debug
         // Don't trim - preserve intentional newlines at start for command responses
         terminalInstance.current?.writeln(message.trimEnd())
       }
       
       const handleError = (error: { message: string }) => {
-        console.error('Socket error:', error)
         terminalInstance.current?.writeln(`\x1b[31m[Erreur] ${error.message}\x1b[0m`)
       }
 

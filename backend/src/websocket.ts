@@ -321,7 +321,7 @@ export function setupWebSocket(io: SocketIOServer) {
           try {
             output = await dockerService.execCommand(server.containerId, ['rcon-cli', command]);
             
-            // Send the command output back to the client
+            // Send the command output back to the client and persist to database
             if (output && output.trim()) {
               const lines = output.split('\n').filter(line => line.trim());
               for (const line of lines) {
@@ -332,6 +332,15 @@ export function setupWebSocket(io: SocketIOServer) {
                   message: `\r\n\x1b[36m[Server]\x1b[0m ${formattedLine}`,
                   timestamp: new Date().toISOString()
                 });
+                
+                // Persist response to database (without ANSI codes for readability)
+                await prisma.serverLog.create({
+                  data: {
+                    serverId,
+                    level: 'info',
+                    message: `[Response] ${line.trim()}`
+                  }
+                });
               }
             }
           } catch (cmdError: any) {
@@ -340,6 +349,15 @@ export function setupWebSocket(io: SocketIOServer) {
               serverId,
               message: `\x1b[31m[Error]\x1b[0m ${cmdError.message || 'Failed to execute command'}`,
               timestamp: new Date().toISOString()
+            });
+            
+            // Persist error to database
+            await prisma.serverLog.create({
+              data: {
+                serverId,
+                level: 'error',
+                message: `[Command Error] ${cmdError.message || 'Failed to execute command'}`
+              }
             });
           }
         } else {
@@ -353,6 +371,15 @@ export function setupWebSocket(io: SocketIOServer) {
           });
           await exec.start({ hijack: true, stdin: true });
         }
+
+        // Persist command to database
+        await prisma.serverLog.create({
+          data: {
+            serverId,
+            level: 'info',
+            message: `[Command] ${socket.username}: ${command}`
+          }
+        });
 
         socket.emit('server:commandSent', { serverId, command });
         logger.info(`Command sent to ${serverId} by ${socket.username}: ${command}`);

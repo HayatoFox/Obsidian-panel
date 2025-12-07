@@ -205,8 +205,6 @@ export default function ServerDetail() {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab server={server} stats={stats} />
-      case 'console':
-        return <ConsoleTab server={server} />
       case 'files':
         return <FileManagerTab server={server} />
       case 'players':
@@ -358,7 +356,13 @@ export default function ServerDetail() {
 
       {/* Tab Content */}
       <div className="min-h-[500px]">
-        {renderTabContent()}
+        {/* Console is always mounted but hidden when not active - for instant switching */}
+        {server && (
+          <div style={{ display: activeTab === 'console' ? 'block' : 'none' }}>
+            <ConsoleTab server={server} visible={activeTab === 'console'} />
+          </div>
+        )}
+        {activeTab !== 'console' && renderTabContent()}
       </div>
     </div>
   )
