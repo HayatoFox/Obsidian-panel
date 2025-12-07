@@ -370,8 +370,8 @@ EOF
 # Obsidian Panel - Frontend Configuration
 # Generated on $(date)
 
-VITE_API_URL=http://localhost:${BACKEND_PORT}
-VITE_WS_URL=ws://localhost:${BACKEND_PORT}
+VITE_API_URL=http://31.39.12.93:${BACKEND_PORT}
+VITE_WS_URL=ws://31.39.12.93:${BACKEND_PORT}
 EOF
 
     print_success "Fichier frontend/.env créé"

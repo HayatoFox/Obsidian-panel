@@ -99,7 +99,7 @@ export default function OverviewTab({ server, stats }: Props) {
   const infoCards = [
     {
       label: 'IP:Port',
-      value: `localhost:${server.port}`,
+      value: `31.39.12.93:${server.port}`,
       icon: GlobeAltIcon,
       mono: true,
     },
