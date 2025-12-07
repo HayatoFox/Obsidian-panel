@@ -120,6 +120,8 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showEditorModal, setShowEditorModal] = useState(false);
+  const [showExtractModal, setShowExtractModal] = useState(false);
+  const [extractingFile, setExtractingFile] = useState<string>('');
   const [newFolderName, setNewFolderName] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [renameTarget, setRenameTarget] = useState<FileItem | null>(null);
@@ -604,6 +606,9 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
 
   // Extract archive
   const extractArchive = async (item: FileItem) => {
+    setExtractingFile(item.name);
+    setShowExtractModal(true);
+    
     try {
       const archivePath = currentPath === '/' ? `/${item.name}` : `${currentPath}/${item.name}`;
       await api.post('/files/extract', {
@@ -616,6 +621,9 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
       fetchFiles();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erreur lors de l\'extraction');
+    } finally {
+      setShowExtractModal(false);
+      setExtractingFile('');
     }
   };
 
@@ -1188,6 +1196,52 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
               >
                 Créer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extract modal */}
+      {showExtractModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-96">
+            <div className="flex flex-col items-center">
+              <div className="relative w-16 h-16 mb-4">
+                <svg className="w-16 h-16 animate-spin" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="none"
+                    className="text-gray-700"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeDasharray="251.2"
+                    strokeDashoffset="125.6"
+                    className="text-purple-500"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <ArchiveBoxIcon className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Extraction en cours...</h3>
+              <p className="text-sm text-gray-400 text-center mb-4 truncate max-w-full">
+                {extractingFile}
+              </p>
+              <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div className="bg-purple-500 h-full animate-pulse" style={{ width: '100%' }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Veuillez patienter, cela peut prendre un moment pour les grosses archives...
+              </p>
             </div>
           </div>
         </div>
