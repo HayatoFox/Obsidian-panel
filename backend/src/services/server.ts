@@ -146,8 +146,12 @@ export class ServerService {
     env['GID'] = '0';
     
     if (options.memoryLimit) {
-      env['MEMORY'] = `${options.memoryLimit}M`;
+      // INIT_MEMORY = starting memory (Xms) - set to 1/4 of max to allow dynamic scaling
+      // MAX_MEMORY = maximum memory (Xmx)
+      const initMemory = Math.max(1024, Math.floor(options.memoryLimit / 4));
+      env['INIT_MEMORY'] = `${initMemory}M`;
       env['MAX_MEMORY'] = `${options.memoryLimit}M`;
+      // Don't set MEMORY as it overrides both INIT and MAX
     }
 
     // Game-specific configurations
