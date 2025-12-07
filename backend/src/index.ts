@@ -55,7 +55,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/servers', authenticateToken, serverRouter);
-app.use('/api/servers/:id/files', authenticateToken, filesRouter);
+app.use('/api/files', authenticateToken, filesRouter);
 app.use('/api/game-templates', authenticateToken, gameTemplateRouter);
 app.use('/api/users', authenticateToken, userRouter);
 
