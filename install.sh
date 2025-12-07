@@ -825,7 +825,7 @@ async function main() {
         },
         {
             name: 'gmod',
-            displayName: "Garry's Mod",
+            displayName: 'Garry\'s Mod',
             category: 'steamcmd',
             description: 'Serveur Garry\'s Mod - Sandbox physics game',
             dockerImage: 'cm2network/gmod:latest',
