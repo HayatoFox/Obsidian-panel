@@ -147,7 +147,11 @@ export class ServerService {
 
     // Game-specific configurations
     if (template.name.includes('minecraft')) {
-      env['TYPE'] = gameConfig.serverType || 'VANILLA';
+      // Server type - use override if set, otherwise use from creation config
+      // IMPORTANT: Use 'CUSTOM' for pre-installed servers to skip auto-installation
+      const serverType = gameConfig.serverType || 'VANILLA';
+      env['TYPE'] = serverType;
+      
       env['VERSION'] = gameConfig.version || 'LATEST';
       env['DIFFICULTY'] = gameConfig.difficulty || 'normal';
       env['MODE'] = gameConfig.gamemode || 'survival';
@@ -160,6 +164,15 @@ export class ServerService {
       env['SPAWN_MONSTERS'] = String(gameConfig.spawnMonsters !== false);
       env['SPAWN_NPCS'] = String(gameConfig.spawnNpcs !== false);
       
+      // Skip server installation - useful for pre-installed/custom servers
+      if (gameConfig.skipServerInstall) {
+        env['SKIP_SERVER_ACTIVITYCHECK'] = 'true';
+        // For custom type, also set these to prevent re-download
+        if (serverType === 'CUSTOM') {
+          env['CUSTOM_SERVER'] = gameConfig.serverJar || '/data/server.jar';
+        }
+      }
+      
       // Java version selection (uses itzg/minecraft-server JAVA_VERSION env var)
       // Supported values: 8, 11, 16, 17, 18, 19, 20, 21
       if (gameConfig.javaVersion) {
@@ -171,8 +184,8 @@ export class ServerService {
         env['JVM_OPTS'] = gameConfig.jvmArgs.trim();
       }
       
-      // Custom server JAR file name
-      if (gameConfig.serverJar && gameConfig.serverJar.trim()) {
+      // Custom server JAR file name (for non-CUSTOM types)
+      if (gameConfig.serverJar && gameConfig.serverJar.trim() && serverType !== 'CUSTOM') {
         env['SERVER'] = gameConfig.serverJar.trim();
       }
       

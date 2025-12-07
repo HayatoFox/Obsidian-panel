@@ -41,6 +41,21 @@ const JAVA_VERSIONS = [
   { value: '25', label: 'Java 25 (Dernière)' },
 ]
 
+// Server types for custom servers
+const SERVER_TYPES = [
+  { value: '', label: 'Auto (utilise la config de création)' },
+  { value: 'CUSTOM', label: 'Custom (serveur pré-installé)' },
+  { value: 'VANILLA', label: 'Vanilla' },
+  { value: 'PAPER', label: 'Paper' },
+  { value: 'SPIGOT', label: 'Spigot' },
+  { value: 'BUKKIT', label: 'Bukkit' },
+  { value: 'FORGE', label: 'Forge' },
+  { value: 'NEOFORGE', label: 'NeoForge' },
+  { value: 'FABRIC', label: 'Fabric' },
+  { value: 'QUILT', label: 'Quilt' },
+  { value: 'PURPUR', label: 'Purpur' },
+]
+
 export default function SettingsTab({ server, onUpdate }: Props) {
   const gameConfig = parseGameConfig(server.gameConfig)
   const [loading, setLoading] = useState(false)
@@ -54,18 +69,22 @@ export default function SettingsTab({ server, onUpdate }: Props) {
     difficulty: gameConfig.difficulty || 'normal',
     gamemode: gameConfig.gamemode || 'survival',
     javaVersion: gameConfig.javaVersion || '17',
+    serverType: gameConfig.serverType || '',
     jvmArgs: gameConfig.jvmArgs || '',
     serverJar: gameConfig.serverJar || '',
     startupCommand: gameConfig.startupCommand || '',
+    skipServerInstall: gameConfig.skipServerInstall || false,
   })
   const [recreating, setRecreating] = useState(false)
   
   // Track original values that require container recreation
   const originalConfig = {
     javaVersion: gameConfig.javaVersion || '17',
+    serverType: gameConfig.serverType || '',
     jvmArgs: gameConfig.jvmArgs || '',
     serverJar: gameConfig.serverJar || '',
     startupCommand: gameConfig.startupCommand || '',
+    skipServerInstall: gameConfig.skipServerInstall || false,
     memoryLimit: server.memoryLimit,
     cpuLimit: server.cpuLimit,
   }
@@ -74,9 +93,11 @@ export default function SettingsTab({ server, onUpdate }: Props) {
   const needsRecreation = () => {
     return (
       formData.javaVersion !== originalConfig.javaVersion ||
+      formData.serverType !== originalConfig.serverType ||
       formData.jvmArgs !== originalConfig.jvmArgs ||
       formData.serverJar !== originalConfig.serverJar ||
       formData.startupCommand !== originalConfig.startupCommand ||
+      formData.skipServerInstall !== originalConfig.skipServerInstall ||
       formData.memoryLimit !== originalConfig.memoryLimit ||
       formData.cpuLimit !== originalConfig.cpuLimit
     )
@@ -98,9 +119,11 @@ export default function SettingsTab({ server, onUpdate }: Props) {
           difficulty: formData.difficulty,
           gamemode: formData.gamemode,
           javaVersion: formData.javaVersion,
+          serverType: formData.serverType || undefined,
           jvmArgs: formData.jvmArgs,
           serverJar: formData.serverJar,
           startupCommand: formData.startupCommand,
+          skipServerInstall: formData.skipServerInstall,
         }
       })
       toast.success('Paramètres sauvegardés')
@@ -356,6 +379,46 @@ export default function SettingsTab({ server, onUpdate }: Props) {
             </h3>
             
             <div className="space-y-6">
+              {/* Server Type Override */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Type de serveur (override)
+                </label>
+                <select
+                  value={formData.serverType}
+                  onChange={(e) => setFormData({ ...formData, serverType: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  {SERVER_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Utilisez "Custom" pour un serveur pré-installé (évite la réinstallation automatique)
+                </p>
+              </div>
+
+              {/* Skip Server Install */}
+              <div className="flex items-center p-4 bg-dark-700/50 rounded-lg border border-dark-600">
+                <input
+                  type="checkbox"
+                  id="skipServerInstall"
+                  checked={formData.skipServerInstall}
+                  onChange={(e) => setFormData({ ...formData, skipServerInstall: e.target.checked })}
+                  className="w-4 h-4 text-purple-600 bg-dark-700 border-dark-600 rounded focus:ring-purple-500"
+                />
+                <div className="ml-3">
+                  <label htmlFor="skipServerInstall" className="text-sm font-medium text-gray-300">
+                    Passer l'installation du serveur
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Cochez si vous avez déjà installé le serveur manuellement (utile pour serveurs custom/modpacks)
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Arguments JVM
