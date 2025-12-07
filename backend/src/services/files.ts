@@ -5,7 +5,7 @@ import { pipeline } from 'stream/promises';
 import { createReadStream, createWriteStream } from 'fs';
 import archiver from 'archiver';
 import extract from 'extract-zip';
-import tar from 'tar';
+import * as tar from 'tar';
 import { logger } from '../utils/logger';
 
 const stat = promisify(fs.stat);
@@ -364,7 +364,7 @@ class FileService {
     if (ext === '.zip') {
       await extract(fullArchivePath, { dir: fullDestPath });
     } else if (ext === '.tar' || ext === '.tgz' || basename.endsWith('.tar.gz')) {
-      await tar.extract({
+      await tar.x({
         file: fullArchivePath,
         cwd: fullDestPath,
       });
