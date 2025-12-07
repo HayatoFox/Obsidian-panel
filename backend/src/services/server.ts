@@ -171,9 +171,14 @@ export class ServerService {
         env['JVM_OPTS'] = gameConfig.jvmArgs.trim();
       }
       
+      // Custom server JAR file name
+      if (gameConfig.serverJar && gameConfig.serverJar.trim()) {
+        env['SERVER'] = gameConfig.serverJar.trim();
+      }
+      
       // Custom startup command (overrides default)
       if (gameConfig.startupCommand && gameConfig.startupCommand.trim()) {
-        env['CUSTOM_SERVER_JAR'] = gameConfig.startupCommand.trim();
+        env['CUSTOM_SERVER'] = gameConfig.startupCommand.trim();
       }
       
       // RCON configuration for remote commands

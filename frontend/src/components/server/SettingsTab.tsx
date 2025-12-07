@@ -55,6 +55,7 @@ export default function SettingsTab({ server, onUpdate }: Props) {
     gamemode: gameConfig.gamemode || 'survival',
     javaVersion: gameConfig.javaVersion || '17',
     jvmArgs: gameConfig.jvmArgs || '',
+    serverJar: gameConfig.serverJar || '',
     startupCommand: gameConfig.startupCommand || '',
   })
   const [recreating, setRecreating] = useState(false)
@@ -77,6 +78,7 @@ export default function SettingsTab({ server, onUpdate }: Props) {
           gamemode: formData.gamemode,
           javaVersion: formData.javaVersion,
           jvmArgs: formData.jvmArgs,
+          serverJar: formData.serverJar,
           startupCommand: formData.startupCommand,
         }
       })
@@ -348,6 +350,22 @@ export default function SettingsTab({ server, onUpdate }: Props) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Fichier JAR du serveur
+                </label>
+                <input
+                  type="text"
+                  value={formData.serverJar}
+                  onChange={(e) => setFormData({ ...formData, serverJar: e.target.value })}
+                  placeholder="server.jar (laisser vide pour auto-détection)"
+                  className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Nom du fichier JAR à utiliser (ex: paper-1.20.4.jar, forge-server.jar). Laisser vide pour auto-détection.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Commande de démarrage personnalisée
                 </label>
                 <textarea
@@ -358,7 +376,7 @@ export default function SettingsTab({ server, onUpdate }: Props) {
                   className="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Remplace la commande de démarrage par défaut. Laisser vide pour utiliser les paramètres standards.
+                  Commande complète personnalisée (écrase JAR et arguments). Laisser vide pour utiliser les paramètres ci-dessus.
                 </p>
               </div>
 
