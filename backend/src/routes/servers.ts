@@ -293,11 +293,27 @@ router.patch(
     const { name, memoryLimit, cpuLimit, gameConfig } = req.body;
 
     try {
+      // Get current server to merge gameConfig
+      const currentServer = await prisma.server.findUnique({
+        where: { id: req.params.id }
+      });
+
+      if (!currentServer) {
+        res.status(404).json({ error: 'Server not found' });
+        return;
+      }
+
       const updateData: any = {};
       if (name) updateData.name = name;
       if (memoryLimit) updateData.memoryLimit = memoryLimit;
       if (cpuLimit) updateData.cpuLimit = cpuLimit;
-      if (gameConfig) updateData.gameConfig = JSON.stringify(gameConfig);
+      
+      // Merge gameConfig with existing config instead of replacing
+      if (gameConfig) {
+        const currentConfig = JSON.parse(currentServer.gameConfig || '{}');
+        const mergedConfig = { ...currentConfig, ...gameConfig };
+        updateData.gameConfig = JSON.stringify(mergedConfig);
+      }
 
       const server = await prisma.server.update({
         where: { id: req.params.id },

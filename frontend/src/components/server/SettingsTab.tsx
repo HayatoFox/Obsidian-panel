@@ -59,7 +59,28 @@ export default function SettingsTab({ server, onUpdate }: Props) {
     startupCommand: gameConfig.startupCommand || '',
   })
   const [recreating, setRecreating] = useState(false)
-  const originalJavaVersion = gameConfig.javaVersion || '17'
+  
+  // Track original values that require container recreation
+  const originalConfig = {
+    javaVersion: gameConfig.javaVersion || '17',
+    jvmArgs: gameConfig.jvmArgs || '',
+    serverJar: gameConfig.serverJar || '',
+    startupCommand: gameConfig.startupCommand || '',
+    memoryLimit: server.memoryLimit,
+    cpuLimit: server.cpuLimit,
+  }
+
+  // Check if any setting that requires container recreation has changed
+  const needsRecreation = () => {
+    return (
+      formData.javaVersion !== originalConfig.javaVersion ||
+      formData.jvmArgs !== originalConfig.jvmArgs ||
+      formData.serverJar !== originalConfig.serverJar ||
+      formData.startupCommand !== originalConfig.startupCommand ||
+      formData.memoryLimit !== originalConfig.memoryLimit ||
+      formData.cpuLimit !== originalConfig.cpuLimit
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,11 +105,14 @@ export default function SettingsTab({ server, onUpdate }: Props) {
       })
       toast.success('Paramètres sauvegardés')
       
-      // If Java version changed, offer to recreate container
-      if (formData.javaVersion !== originalJavaVersion && server.gameType.includes('minecraft')) {
+      // If settings requiring container recreation changed, offer to recreate
+      if (needsRecreation() && server.gameType.includes('minecraft')) {
         toast((t) => (
           <div className="flex flex-col gap-2">
-            <span>La version Java a changé. Recréer le conteneur pour appliquer ?</span>
+            <span>Les paramètres ont changé. Recréer le conteneur pour appliquer les modifications ?</span>
+            <p className="text-xs text-gray-400">
+              (Java, JVM, JAR, mémoire, CPU nécessitent une recréation)
+            </p>
             <div className="flex gap-2">
               <button
                 onClick={() => {
@@ -97,7 +121,7 @@ export default function SettingsTab({ server, onUpdate }: Props) {
                 }}
                 className="px-3 py-1 bg-purple-600 text-white rounded text-sm"
               >
-                Recréer
+                Recréer maintenant
               </button>
               <button
                 onClick={() => toast.dismiss(t.id)}
@@ -107,7 +131,7 @@ export default function SettingsTab({ server, onUpdate }: Props) {
               </button>
             </div>
           </div>
-        ), { duration: 10000 })
+        ), { duration: 15000 })
       }
       
       onUpdate()
