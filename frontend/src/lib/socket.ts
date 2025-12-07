@@ -6,11 +6,40 @@ let socket: Socket | null = null
 export function getSocket(): Socket {
   if (!socket) {
     const token = useAuthStore.getState().token
-    socket = io(import.meta.env.VITE_API_URL || '', {
+    
+    // Determine the API URL - use current origin if not specified
+    const apiUrl = import.meta.env.VITE_API_URL || window.location.origin
+    
+    console.log('Creating socket connection to:', apiUrl)
+    console.log('Token available:', !!token)
+    
+    socket = io(apiUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    })
+    
+    socket.on('connect', () => {
+      console.log('Socket connected successfully, id:', socket?.id)
+    })
+    
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message)
+    })
+    
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason)
     })
   }
+  
+  // Ensure socket is connected
+  if (!socket.connected) {
+    socket.connect()
+  }
+  
   return socket
 }
 
