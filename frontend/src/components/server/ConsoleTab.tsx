@@ -182,7 +182,8 @@ export default function ConsoleTab({ server }: Props) {
       {/* Console Output */}
       <div
         ref={terminalRef}
-        className="h-[500px] bg-slate-950 rounded-lg overflow-hidden border border-dark-700"
+        className="h-[500px] rounded-lg overflow-hidden border border-dark-700"
+        style={{ backgroundColor: '#0f172a' }}
       />
 
       {/* Command Input */}

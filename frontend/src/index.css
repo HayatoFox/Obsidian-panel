@@ -423,11 +423,19 @@
    ============================================ */
 .xterm {
   padding: 16px;
+  height: 100% !important;
   @apply rounded-xl;
   background: rgba(9, 9, 12, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
-  contain: strict;
+}
+
+.xterm-screen {
+  height: 100% !important;
+}
+
+.xterm-viewport {
+  overflow-y: auto !important;
 }
 
 .xterm-viewport::-webkit-scrollbar {
