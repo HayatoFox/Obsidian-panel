@@ -6,6 +6,37 @@ import { logger } from './utils/logger';
 
 const prisma = new PrismaClient();
 
+// Parse Docker multiplexed stream (8-byte header per frame)
+function parseDockerStream(buffer: Buffer): string {
+  const messages: string[] = [];
+  let offset = 0;
+
+  while (offset < buffer.length) {
+    // Docker stream header: 1 byte type, 3 bytes padding, 4 bytes size (big-endian)
+    if (offset + 8 > buffer.length) {
+      // Incomplete header, return raw remainder
+      messages.push(buffer.slice(offset).toString('utf8'));
+      break;
+    }
+
+    const size = buffer.readUInt32BE(offset + 4);
+    const payloadStart = offset + 8;
+    const payloadEnd = payloadStart + size;
+
+    if (payloadEnd > buffer.length) {
+      // Incomplete payload, return raw remainder
+      messages.push(buffer.slice(offset).toString('utf8'));
+      break;
+    }
+
+    const payload = buffer.slice(payloadStart, payloadEnd).toString('utf8');
+    messages.push(payload);
+    offset = payloadEnd;
+  }
+
+  return messages.join('');
+}
+
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   username?: string;
@@ -95,12 +126,14 @@ export function setupWebSocket(io: SocketIOServer) {
             });
 
             logStream.on('data', (chunk: Buffer) => {
-              const message = chunk.toString().replace(/^\x01\x00\x00\x00\x00\x00.{2}/, '');
-              io.to(`server:${serverId}`).emit('server:log', {
-                serverId,
-                message,
-                timestamp: new Date().toISOString()
-              });
+              const message = parseDockerStream(chunk);
+              if (message.trim()) {
+                io.to(`server:${serverId}`).emit('server:log', {
+                  serverId,
+                  message,
+                  timestamp: new Date().toISOString()
+                });
+              }
             });
 
             socket.on('disconnect', () => {
