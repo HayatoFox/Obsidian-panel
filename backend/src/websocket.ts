@@ -6,6 +6,36 @@ import { logger } from './utils/logger';
 
 const prisma = new PrismaClient();
 
+// Convert Minecraft color codes (§x) to ANSI escape codes for terminal display
+function convertMinecraftColors(text: string): string {
+  const colorMap: Record<string, string> = {
+    '0': '\x1b[30m',      // Black
+    '1': '\x1b[34m',      // Dark Blue
+    '2': '\x1b[32m',      // Dark Green
+    '3': '\x1b[36m',      // Dark Aqua
+    '4': '\x1b[31m',      // Dark Red
+    '5': '\x1b[35m',      // Dark Purple
+    '6': '\x1b[33m',      // Gold
+    '7': '\x1b[37m',      // Gray
+    '8': '\x1b[90m',      // Dark Gray
+    '9': '\x1b[94m',      // Blue
+    'a': '\x1b[92m',      // Green
+    'b': '\x1b[96m',      // Aqua
+    'c': '\x1b[91m',      // Red
+    'd': '\x1b[95m',      // Light Purple
+    'e': '\x1b[93m',      // Yellow
+    'f': '\x1b[97m',      // White
+    'l': '\x1b[1m',       // Bold
+    'n': '\x1b[4m',       // Underline
+    'o': '\x1b[3m',       // Italic
+    'r': '\x1b[0m',       // Reset
+  };
+  
+  return text.replace(/§([0-9a-fklmnor])/gi, (_, code) => {
+    return colorMap[code.toLowerCase()] || '';
+  }) + '\x1b[0m'; // Reset at end
+}
+
 // Parse Docker multiplexed stream (8-byte header per frame)
 // Returns null if the buffer doesn't look like a multiplexed stream
 function parseDockerStream(buffer: Buffer): string {
@@ -292,9 +322,11 @@ export function setupWebSocket(io: SocketIOServer) {
             if (output && output.trim()) {
               const lines = output.split('\n').filter(line => line.trim());
               for (const line of lines) {
+                // Convert Minecraft color codes to ANSI and format as server response
+                const formattedLine = convertMinecraftColors(line.trim());
                 io.to(`server:${serverId}`).emit('server:log', {
                   serverId,
-                  message: `§a${line.trim()}`,
+                  message: `\x1b[36m[Server]\x1b[0m ${formattedLine}`,
                   timestamp: new Date().toISOString()
                 });
               }
@@ -303,7 +335,7 @@ export function setupWebSocket(io: SocketIOServer) {
             logger.error('RCON command error:', cmdError);
             io.to(`server:${serverId}`).emit('server:log', {
               serverId,
-              message: `§c[Error] ${cmdError.message || 'Failed to execute command'}`,
+              message: `\x1b[31m[Error]\x1b[0m ${cmdError.message || 'Failed to execute command'}`,
               timestamp: new Date().toISOString()
             });
           }
