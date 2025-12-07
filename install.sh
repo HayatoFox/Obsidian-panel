@@ -340,6 +340,7 @@ configure_environment() {
 # Server
 PORT=${BACKEND_PORT}
 NODE_ENV=production
+FRONTEND_URL=http://31.39.12.93:${FRONTEND_PORT}
 
 # Database
 DATABASE_URL="file:./prisma/data/obsidian.db"
@@ -370,7 +371,7 @@ EOF
 # Obsidian Panel - Frontend Configuration
 # Generated on $(date)
 
-VITE_API_URL=http://31.39.12.93:${BACKEND_PORT}
+VITE_API_URL=http://31.39.12.93:${BACKEND_PORT}/api
 VITE_WS_URL=ws://31.39.12.93:${BACKEND_PORT}
 EOF
 
@@ -393,8 +394,8 @@ install_backend() {
     # Generate Prisma client
     print_info "Génération du client Prisma..."
     npx prisma generate
-    
-    # Run migrations
+
+    # Run migrations (or create schema if none)
     print_info "Exécution des migrations de base de données..."
     npx prisma migrate deploy 2>/dev/null || npx prisma db push --accept-data-loss
     
@@ -771,7 +772,7 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=${INSTALL_DIR}/frontend
-ExecStart=$(which npx) serve -s dist -l ${FRONTEND_PORT:-5173}
+ExecStart=$(which npx) serve -s dist -l tcp://0.0.0.0:${FRONTEND_PORT:-5173}
 Restart=always
 RestartSec=10
 
