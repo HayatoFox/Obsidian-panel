@@ -22,11 +22,15 @@ export default function ConsoleTab({ server }: Props) {
   const fitAddon = useRef<FitAddon | null>(null)
 
   useEffect(() => {
-    if (terminalRef.current && !terminalInstance.current) {
-      initTerminal()
-    }
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      if (terminalRef.current && !terminalInstance.current) {
+        initTerminal()
+      }
+    }, 100)
 
     return () => {
+      clearTimeout(timer)
       if (terminalInstance.current) {
         terminalInstance.current.dispose()
         terminalInstance.current = null
@@ -38,20 +42,42 @@ export default function ConsoleTab({ server }: Props) {
     if (server && terminalInstance.current) {
       const socket = getSocket()
       
+      // Debug: Log socket connection status
+      console.log('Socket connected:', socket.connected)
+      
       socket.emit('server:subscribe', server.id)
+      terminalInstance.current?.writeln('\x1b[90m[System] Connexion au serveur...\x1b[0m')
       
       const handleLog = ({ message }: { message: string }) => {
+        console.log('Received log:', message) // Debug
         terminalInstance.current?.writeln(message.trim())
+      }
+      
+      const handleError = (error: { message: string }) => {
+        console.error('Socket error:', error)
+        terminalInstance.current?.writeln(`\x1b[31m[Erreur] ${error.message}\x1b[0m`)
       }
 
       socket.on('server:log', handleLog)
+      socket.on('error', handleError)
+      
+      // Listen for connection events
+      socket.on('connect', () => {
+        terminalInstance.current?.writeln('\x1b[32m[System] Connecté au WebSocket\x1b[0m')
+        socket.emit('server:subscribe', server.id)
+      })
+      
+      socket.on('disconnect', () => {
+        terminalInstance.current?.writeln('\x1b[33m[System] Déconnecté du WebSocket\x1b[0m')
+      })
 
       return () => {
         socket.emit('server:unsubscribe', server.id)
         socket.off('server:log', handleLog)
+        socket.off('error', handleError)
       }
     }
-  }, [server])
+  }, [server, terminalInstance.current])
 
   const initTerminal = () => {
     if (!terminalRef.current) return
@@ -101,6 +127,9 @@ export default function ConsoleTab({ server }: Props) {
     term.writeln('\x1b[1;35m║\x1b[0m           \x1b[1;36mObsidian Panel - Server Console\x1b[0m              \x1b[1;35m║\x1b[0m')
     term.writeln('\x1b[1;35m╚════════════════════════════════════════════════════════════╝\x1b[0m')
     term.writeln('')
+    
+    // Fit again after content is added
+    setTimeout(() => fit.fit(), 50)
 
     // Handle window resize
     const handleResize = () => {
