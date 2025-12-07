@@ -116,7 +116,7 @@ export default function ServerDetail() {
     }
   }
 
-  const handleAction = async (action: 'start' | 'stop' | 'restart' | 'delete') => {
+  const handleAction = async (action: 'start' | 'stop' | 'restart' | 'delete' | 'kill' | 'sync') => {
     setActionLoading(true)
     try {
       if (action === 'delete') {
@@ -130,15 +130,23 @@ export default function ServerDetail() {
         return
       }
 
+      if (action === 'kill') {
+        if (!confirm('Forcer l\'arrêt du serveur ? Les données non sauvegardées seront perdues.')) {
+          setActionLoading(false)
+          return
+        }
+      }
+
       await api.post(`/servers/${id}/${action}`)
-      toast.success(
-        action === 'start' 
-          ? 'Démarrage en cours...' 
-          : action === 'stop' 
-          ? 'Arrêt en cours...' 
-          : 'Redémarrage en cours...'
-      )
-      setTimeout(fetchServer, 2000)
+      const messages: Record<string, string> = {
+        start: 'Démarrage en cours...',
+        stop: 'Arrêt en cours...',
+        restart: 'Redémarrage en cours...',
+        kill: 'Serveur forcé à l\'arrêt',
+        sync: 'Statut synchronisé'
+      }
+      toast.success(messages[action] || 'Action effectuée')
+      setTimeout(fetchServer, 1000)
     } catch (error: any) {
       toast.error(error.response?.data?.error || `Erreur lors de l'action`)
     } finally {
@@ -291,6 +299,28 @@ export default function ServerDetail() {
               >
                 <StopIcon className="h-4 w-4" />
                 Arrêter
+              </button>
+            </>
+          )}
+          {(server.status === 'starting' || server.status === 'stopping' || server.status === 'error') && (
+            <>
+              <button
+                onClick={() => handleAction('sync')}
+                disabled={actionLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium rounded-lg transition-all"
+                title="Synchroniser le statut avec Docker"
+              >
+                <ArrowPathIcon className="h-4 w-4" />
+                Sync
+              </button>
+              <button
+                onClick={() => handleAction('kill')}
+                disabled={actionLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] disabled:opacity-50 text-white font-medium rounded-lg transition-all"
+                title="Forcer l'arrêt (kill)"
+              >
+                <StopIcon className="h-4 w-4" />
+                Forcer l'arrêt
               </button>
             </>
           )}

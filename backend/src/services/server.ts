@@ -207,6 +207,24 @@ export class ServerService {
     await this.dockerService.restartContainer(server.containerId);
   }
 
+  async killServer(serverId: string): Promise<void> {
+    const server = await prisma.server.findUnique({ where: { id: serverId } });
+    if (!server || !server.containerId) {
+      throw new Error('Server not found');
+    }
+
+    try {
+      await this.dockerService.killContainer(server.containerId);
+    } catch (e) {
+      // Container might already be stopped
+    }
+
+    await prisma.server.update({
+      where: { id: serverId },
+      data: { status: 'stopped' }
+    });
+  }
+
   async deleteServer(serverId: string): Promise<void> {
     const server = await prisma.server.findUnique({ where: { id: serverId } });
     if (!server) {

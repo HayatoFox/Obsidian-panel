@@ -151,6 +151,28 @@ router.post('/:id/restart', requireOwnerOrAdmin(), async (req: AuthRequest, res:
   }
 });
 
+// Kill server (force stop)
+router.post('/:id/kill', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await serverService.killServer(req.params.id);
+    res.json({ message: 'Server killed' });
+  } catch (error: any) {
+    console.error('Error killing server:', error);
+    res.status(500).json({ error: error.message || 'Failed to kill server' });
+  }
+});
+
+// Sync server status with Docker
+router.post('/:id/sync', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const status = await serverService.syncServerStatus(req.params.id);
+    res.json({ message: 'Status synced', status });
+  } catch (error: any) {
+    console.error('Error syncing server status:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync status' });
+  }
+});
+
 // Delete server
 router.delete('/:id', requireOwnerOrAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
   try {

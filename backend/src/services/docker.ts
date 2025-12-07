@@ -123,6 +123,12 @@ export class DockerService {
     logger.info(`Container ${containerId} removed`);
   }
 
+  async killContainer(containerId: string): Promise<void> {
+    const container = this.docker.getContainer(containerId);
+    await container.kill();
+    logger.info(`Container ${containerId} killed`);
+  }
+
   async getContainerStatus(containerId: string): Promise<string> {
     try {
       const container = this.docker.getContainer(containerId);
