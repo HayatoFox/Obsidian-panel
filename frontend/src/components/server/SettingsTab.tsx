@@ -174,10 +174,14 @@ export default function SettingsTab({ server, onUpdate }: Props) {
       })
       console.log('[RECREATE] Response:', response.data)
       toast.success('Conteneur recréé avec succès. Vous pouvez maintenant démarrer le serveur.')
+      // Force a small delay then refresh to ensure DB is updated
+      await new Promise(resolve => setTimeout(resolve, 500))
       onUpdate()
     } catch (error: any) {
       console.error('[RECREATE] Error:', error)
       toast.error(error.response?.data?.error || error.message || 'Erreur lors de la recréation du conteneur')
+      // Still refresh to get current status
+      onUpdate()
     } finally {
       setRecreating(false)
     }

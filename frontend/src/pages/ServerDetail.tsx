@@ -98,6 +98,7 @@ export default function ServerDetail() {
   const fetchServer = async () => {
     try {
       const response = await api.get(`/servers/${id}`)
+      console.log('[FETCH SERVER] Received server data:', response.data.status, response.data)
       setServer(response.data)
     } catch (error) {
       toast.error('Serveur non trouvé')

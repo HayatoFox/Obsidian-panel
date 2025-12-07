@@ -395,14 +395,14 @@ export class ServerService {
         return 'running';
       case 'exited':
       case 'dead':
+      case 'created': // Container created but not started = stopped
         return 'stopped';
-      case 'created':
       case 'restarting':
         return 'starting';
       case 'paused':
         return 'stopped';
       default:
-        return 'unknown';
+        return 'stopped'; // Default to stopped instead of unknown
     }
   }
 
