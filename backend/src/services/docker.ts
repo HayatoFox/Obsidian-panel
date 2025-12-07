@@ -172,17 +172,46 @@ export class DockerService {
     const exec = await container.exec({
       Cmd: command,
       AttachStdout: true,
-      AttachStderr: true
+      AttachStderr: true,
+      Tty: false
     });
 
     const stream = await exec.start({ hijack: true, stdin: false });
     
     return new Promise((resolve, reject) => {
-      let output = '';
+      const chunks: Buffer[] = [];
       stream.on('data', (chunk: Buffer) => {
-        output += chunk.toString();
+        chunks.push(chunk);
       });
-      stream.on('end', () => resolve(output));
+      stream.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        // Parse Docker multiplexed stream (8-byte header per frame)
+        let result = '';
+        let offset = 0;
+        
+        while (offset < buffer.length) {
+          if (offset + 8 > buffer.length) {
+            // Incomplete header, append rest as text
+            result += buffer.slice(offset).toString('utf8');
+            break;
+          }
+          
+          // Skip stream type (1 byte) and padding (3 bytes)
+          // Read size (4 bytes, big-endian)
+          const size = buffer.readUInt32BE(offset + 4);
+          offset += 8;
+          
+          if (offset + size > buffer.length) {
+            result += buffer.slice(offset).toString('utf8');
+            break;
+          }
+          
+          result += buffer.slice(offset, offset + size).toString('utf8');
+          offset += size;
+        }
+        
+        resolve(result);
+      });
       stream.on('error', reject);
     });
   }

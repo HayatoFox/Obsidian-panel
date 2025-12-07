@@ -235,6 +235,8 @@ export function setupWebSocket(io: SocketIOServer) {
                     if (trimmed.includes('RCON Listener') && trimmed.includes('started')) return false;
                     if (trimmed.includes('RCON Client') && trimmed.includes('shutting down')) return false;
                     if (trimmed.includes('Thread RCON Client')) return false;
+                    // Filter RCON command responses (they're already handled separately)
+                    if (trimmed.includes('Rcon connection from')) return false;
                     
                     return true;
                   });
@@ -326,7 +328,7 @@ export function setupWebSocket(io: SocketIOServer) {
                 const formattedLine = convertMinecraftColors(line.trim());
                 io.to(`server:${serverId}`).emit('server:log', {
                   serverId,
-                  message: `\x1b[36m[Server]\x1b[0m ${formattedLine}`,
+                  message: `\r\n\x1b[36m[Server]\x1b[0m ${formattedLine}`,
                   timestamp: new Date().toISOString()
                 });
               }
