@@ -235,8 +235,9 @@ export function setupWebSocket(io: SocketIOServer) {
                     if (trimmed.includes('RCON Listener') && trimmed.includes('started')) return false;
                     if (trimmed.includes('RCON Client') && trimmed.includes('shutting down')) return false;
                     if (trimmed.includes('Thread RCON Client')) return false;
-                    // Filter RCON command responses (they're already handled separately)
+                    // Filter RCON command responses (they're already handled separately via [Server] prefix)
                     if (trimmed.includes('Rcon connection from')) return false;
+                    if (trimmed.includes('[Rcon:')) return false;
                     
                     return true;
                   });

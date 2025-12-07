@@ -50,7 +50,8 @@ export default function ConsoleTab({ server }: Props) {
       
       const handleLog = ({ message }: { message: string }) => {
         console.log('Received log:', message) // Debug
-        terminalInstance.current?.writeln(message.trim())
+        // Don't trim - preserve intentional newlines at start for command responses
+        terminalInstance.current?.writeln(message.trimEnd())
       }
       
       const handleError = (error: { message: string }) => {
