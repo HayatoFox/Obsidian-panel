@@ -31,6 +31,7 @@ BACKUPS_DIR="${DATA_DIR}/backups"
 LOGS_DIR="${DATA_DIR}/logs"
 
 # Default values
+DEPENDENCIES_INSTALLED=0
 DEFAULT_PORT=3000
 DEFAULT_FRONTEND_PORT=5173
 JWT_SECRET=""
@@ -114,6 +115,34 @@ print_info() {
     echo -e "${BLUE}[i]${NC} $1"
 }
 
+detect_os_id() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo "$ID"
+    else
+        echo "unknown"
+    fi
+}
+
+install_dependencies_alma() {
+    print_step "Installation des dépendances (AlmaLinux)..."
+
+    sudo dnf install -y curl dnf-plugins-core >/dev/null
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - >/dev/null
+    sudo dnf install -y nodejs git openssl >/dev/null
+
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo >/dev/null
+    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null
+    sudo systemctl enable --now docker >/dev/null
+
+    if id "$USER" &>/dev/null && [ "$USER" != "root" ]; then
+        sudo usermod -aG docker "$USER" || true
+        print_info "Ajout de $USER au groupe docker (reconnexion requise)"
+    fi
+
+    print_success "Dépendances AlmaLinux installées"
+}
+
 generate_secret() {
     openssl rand -hex 32
 }
@@ -183,6 +212,14 @@ check_dependencies() {
     fi
     
     if [ ${#missing_deps[@]} -ne 0 ]; then
+        OS_ID=$(detect_os_id)
+        if [ "$DEPENDENCIES_INSTALLED" -eq 0 ] && [[ "$OS_ID" == "almalinux" ]]; then
+            DEPENDENCIES_INSTALLED=1
+            install_dependencies_alma
+            check_dependencies
+            return
+        fi
+
         print_error "Dépendances manquantes: ${missing_deps[*]}"
         echo ""
         print_info "Installation des dépendances sur Ubuntu/Debian:"
