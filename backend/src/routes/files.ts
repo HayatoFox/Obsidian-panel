@@ -51,7 +51,22 @@ const handleMulterError = (err: any, req: AuthRequest, res: Response, next: Next
     res.status(400).json({ error: `Upload error: ${err.message}` });
     return;
   }
-  next(err);
+  if (err) {
+    logger.error('Upload error:', err);
+    res.status(400).json({ error: err.message || 'Upload failed' });
+    return;
+  }
+  next();
+};
+
+// Wrapper to handle multer errors properly
+const uploadMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  upload.single('file')(req, res, (err: any) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    next();
+  });
 };
 
 // Helper to get server data path and validate ownership
@@ -310,7 +325,7 @@ router.post('/copy', async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // Upload file - POST /api/files/upload
-router.post('/upload', upload.single('file'), handleMulterError, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/upload', uploadMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const serverId = req.body.serverId;
     const destPath = (req.body.path as string) || '/';

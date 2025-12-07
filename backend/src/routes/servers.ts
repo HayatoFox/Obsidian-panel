@@ -1,12 +1,17 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { AuthRequest, requireOwnerOrAdmin } from '../middleware/auth';
 import { ServerService } from '../services/server';
 
 const router = Router();
 const prisma = new PrismaClient();
 const serverService = new ServerService();
+
+// Type for server with user relation
+type ServerWithUser = Prisma.ServerGetPayload<{
+  include: { user: { select: { id: true; username: true; email: true } } };
+}>;
 
 // Get all servers (admin) or user's servers
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
@@ -24,7 +29,7 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Sync status with Docker
     const serversWithStatus = await Promise.all(
-      servers.map(async (server) => {
+      servers.map(async (server: ServerWithUser) => {
         const status = await serverService.syncServerStatus(server.id);
         return { ...server, status };
       })

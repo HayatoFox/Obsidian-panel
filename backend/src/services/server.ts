@@ -1,4 +1,4 @@
-import { PrismaClient, Server, GameTemplate } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { DockerService, ContainerConfig } from './docker';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -6,6 +6,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const prisma = new PrismaClient();
+
+// Use Prisma's generated types
+type Server = Prisma.ServerGetPayload<{}>;
+type GameTemplate = Prisma.GameTemplateGetPayload<{}>;
 
 export interface CreateServerOptions {
   name: string;

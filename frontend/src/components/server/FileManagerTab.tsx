@@ -111,7 +111,7 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [isDragging, setIsDragging] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -235,15 +235,13 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    setDragCounter(prev => prev + 1);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.currentTarget === dropZoneRef.current) {
-      setIsDragging(false);
-    }
+    setDragCounter(prev => prev - 1);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -254,7 +252,7 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    setDragCounter(0);
 
     const items = e.dataTransfer.items;
     const filesToUpload: File[] = [];
@@ -859,10 +857,10 @@ export function FileManagerTab({ server }: FileManagerTabProps) {
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        className={`flex-1 overflow-auto relative ${isDragging ? 'bg-blue-900/20' : ''}`}
+        className={`flex-1 overflow-auto relative ${dragCounter > 0 ? 'bg-blue-900/20' : ''}`}
       >
         {/* Drag overlay */}
-        {isDragging && (
+        {dragCounter > 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 border-2 border-dashed border-blue-400 z-10">
             <div className="text-center">
               <CloudArrowUpIcon className="w-16 h-16 mx-auto text-blue-400" />
