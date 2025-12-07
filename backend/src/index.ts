@@ -24,6 +24,8 @@ const corsOrigins = [
   process.env.FRONTEND_URL || 'http://31.39.12.93:5173',
   'https://hayslab.xyz',
   'http://hayslab.xyz',
+  'https://hayslab.xyz:5173',
+  'http://hayslab.xyz:5173',
   'https://www.hayslab.xyz',
   'http://www.hayslab.xyz',
   'https://panel.hayslab.xyz',
